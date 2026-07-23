@@ -3,16 +3,16 @@
  * Built with grammy, running on Cloudflare Workers + D1.
  *
  * Matches the existing schema.sql:
- *  - admins            : who can manage the bot
- *  - channels          : known channels (added via /addchannel)
- *  - archives          : a "link" — title/description/is_active/delete_after_seconds
- *  - archive_channels  : which channels are required to unlock a given archive
- *  - files             : files belonging to a finalized archive
- *  - upload_sessions / upload_session_files : in-progress admin upload
- *  - users             : for stats
- *  - sent_messages     : bot-sent messages eligible for auto-delete
- *  - settings          : key/value config (default auto-delete seconds, etc.)
- *  - admin_state       : what the bot is waiting to hear from an admin next
+ * - admins           : who can manage the bot
+ * - channels         : known channels (added via /addchannel)
+ * - archives         : a "link" — title/description/is_active/delete_after_seconds
+ * - archive_channels : which channels are required to unlock a given archive
+ * - files            : files belonging to a finalized archive
+ * - upload_sessions / upload_session_files : in-progress admin upload
+ * - users            : for stats
+ * - sent_messages    : bot-sent messages eligible for auto-delete
+ * - settings         : key/value config (default auto-delete seconds, etc.)
+ * - admin_state      : what the bot is waiting to hear from an admin next
  *
  * This file additionally expects one small addendum table not in the
  * original schema.sql — see schema_addendum.sql — used to debounce the
@@ -20,7 +20,7 @@
  * temp-file/KV based debounce).
  */
 
-import { Bot, InlineKeyboard, Context, webhookCallback } from "grammy";
+import { Bot, InlineKeyboard, Keyboard, Context, webhookCallback } from "grammy";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -31,6 +31,27 @@ export interface Env {
 
 const GROUP_PROMPT_DEBOUNCE_SECONDS = 20;
 const DEFAULT_AUTO_DELETE_SECONDS = 40;
+
+// ---------- admin panel keyboards ----------
+
+const ADMIN_MAIN_MENU = new Keyboard()
+  .text("📤 آپلود فایل جدید").row()
+  .text("📊 آمار ربات").text("📡 مدیریت کانال‌ها").row()
+  .text("⚙️ تنظیمات")
+  .resized();
+
+const CHANNEL_MENU = new Keyboard()
+  .text("➕ افزودن کانال").row()
+  .text("➖ حذف کانال").row()
+  .text("📋 لیست کانال‌ها").row()
+  .text("🔙 برگشت")
+  .resized();
+
+const SETTINGS_MENU = new Keyboard()
+  .text("⏱ تنظیم حذف خودکار").row()
+  .text("👤 افزودن ادمین").row()
+  .text("🔙 برگشت")
+  .resized();
 
 type FileRow = {
   file_id: string;
@@ -265,7 +286,9 @@ async function finalizeArchive(
     env.DB.prepare("DELETE FROM upload_session_files WHERE session_id = ?").bind(sessionId),
     env.DB.prepare("UPDATE upload_sessions SET status = 'finished', updated_at = ? WHERE id = ?").bind(t, sessionId),
   ];
+
   if (statements.length > 0) await env.DB.batch(statements);
+
   return code;
 }
 
@@ -347,6 +370,16 @@ function buildBot(env: Env): Bot {
       await deliverArchive(ctx, env, userId, payload);
       return;
     }
+
+    const admin = await isAdmin(env, userId);
+    if (admin) {
+      await ctx.reply(
+        "خوش آمدید.\nشما مدیر ربات هستید، فایل خود را ارسال کنید تا لینک اشتراک‌گذاری آن ارسال شود.\nاز کیبورد برای مدیریت ربات استفاده کنید.",
+        { reply_markup: ADMIN_MAIN_MENU }
+      );
+      return;
+    }
+
     await ctx.reply("Hello!\nSend a command or message to use the bot.");
   });
 
@@ -490,12 +523,15 @@ function buildBot(env: Env): Bot {
       const [, sessionIdStr, channelIdStr] = data.split(":");
       const state = await getAdminState(env, userId);
       if (!state || state.state !== "awaiting_channels") return ctx.answerCallbackQuery();
+
       const selected: number[] = (state.context.selected as number[]) ?? [];
       const channelId = parseInt(channelIdStr, 10);
       const idx = selected.indexOf(channelId);
       if (idx >= 0) selected.splice(idx, 1);
       else selected.push(channelId);
+
       await setAdminState(env, userId, "awaiting_channels", { ...state.context, selected });
+
       const channels = await getAllChannels(env);
       await ctx.editMessageReplyMarkup({ reply_markup: buildChannelPickerKeyboard(channels, selected, sessionIdStr) });
       await ctx.answerCallbackQuery();
@@ -507,14 +543,17 @@ function buildBot(env: Env): Bot {
       const sessionId = parseInt(data.split(":")[1], 10);
       const state = await getAdminState(env, userId);
       if (!state || state.state !== "awaiting_channels") return ctx.answerCallbackQuery();
+
       const selected: number[] = (state.context.selected as number[]) ?? [];
       if (selected.length === 0) {
         await ctx.answerCallbackQuery({ text: "Select at least one channel." });
         return;
       }
+
       const title = state.context.title as string;
       const description = (state.context.description as string | null) ?? null;
       const code = await finalizeArchive(env, sessionId, title, description, selected);
+
       await clearAdminState(env, userId);
       await ctx.answerCallbackQuery({ text: "Link created!" });
       await ctx.editMessageText(`✅ Link created:\nhttps://t.me/${env.BOT_USERNAME}?start=${code}`);
@@ -564,9 +603,92 @@ function buildBot(env: Env): Bot {
     }
 
     if (chatType !== "private") return;
-    await upsertUser(env, userId);
 
+    await upsertUser(env, userId);
     const admin = await isAdmin(env, userId);
+
+    // Admin: main-menu keyboard button presses
+    if (admin && ctx.message.text) {
+      const menuText = ctx.message.text.trim();
+
+      if (menuText === "📤 آپلود فایل جدید") {
+        const sessionId = await startSession(env, userId);
+        await clearAdminState(env, userId);
+        await ctx.reply(
+          `آپلود شروع شد (سشن #${sessionId}). فایل‌های موردنظر را یکی‌یکی بفرستید. وقتی تمام شد /done را بزنید. برای لغو /cancel.`,
+          { reply_markup: ADMIN_MAIN_MENU }
+        );
+        return;
+      }
+
+      if (menuText === "📊 آمار ربات") {
+        const [users, archives, files, channels] = await Promise.all([
+          env.DB.prepare("SELECT COUNT(*) as c FROM users").first<{ c: number }>(),
+          env.DB.prepare("SELECT COUNT(*) as c FROM archives").first<{ c: number }>(),
+          env.DB.prepare("SELECT COUNT(*) as c FROM files").first<{ c: number }>(),
+          env.DB.prepare("SELECT COUNT(*) as c FROM channels").first<{ c: number }>(),
+        ]);
+        await ctx.reply(
+          `📊 آمار\nکاربران: ${users?.c ?? 0}\nکانال‌ها: ${channels?.c ?? 0}\nلینک‌ها: ${archives?.c ?? 0}\nفایل‌های ذخیره‌شده: ${files?.c ?? 0}`,
+          { reply_markup: ADMIN_MAIN_MENU }
+        );
+        return;
+      }
+
+      if (menuText === "📡 مدیریت کانال‌ها") {
+        await ctx.reply("مدیریت کانال‌ها:", { reply_markup: CHANNEL_MENU });
+        return;
+      }
+
+      if (menuText === "⚙️ تنظیمات") {
+        await ctx.reply("تنظیمات:", { reply_markup: SETTINGS_MENU });
+        return;
+      }
+
+      if (menuText === "🔙 برگشت") {
+        await clearAdminState(env, userId);
+        await ctx.reply("منوی اصلی:", { reply_markup: ADMIN_MAIN_MENU });
+        return;
+      }
+
+      if (menuText === "📋 لیست کانال‌ها") {
+        const channels = await getAllChannels(env);
+        if (channels.length === 0) {
+          await ctx.reply("هیچ کانالی ثبت نشده.", { reply_markup: CHANNEL_MENU });
+          return;
+        }
+        const list = channels
+          .map((c) => `#${c.id} • ${c.username ?? c.channel_id}${c.title ? ` (${c.title})` : ""}`)
+          .join("\n");
+        await ctx.reply(`کانال‌ها:\n${list}`, { reply_markup: CHANNEL_MENU });
+        return;
+      }
+
+      if (menuText === "➕ افزودن کانال") {
+        await setAdminState(env, userId, "awaiting_addchannel", {});
+        await ctx.reply("یوزرنیم کانال را بفرستید (مثال: @channelusername)");
+        return;
+      }
+
+      if (menuText === "➖ حذف کانال") {
+        await setAdminState(env, userId, "awaiting_removechannel", {});
+        await ctx.reply("یوزرنیم کانالی که می‌خواهید حذف شود را بفرستید (مثال: @channelusername)");
+        return;
+      }
+
+      if (menuText === "⏱ تنظیم حذف خودکار") {
+        const current = await getSetting(env, "auto_delete_seconds", String(DEFAULT_AUTO_DELETE_SECONDS));
+        await setAdminState(env, userId, "awaiting_autodelete", {});
+        await ctx.reply(`مقدار فعلی: ${current} ثانیه.\nمقدار جدید را به‌صورت عدد (ثانیه) بفرستید.`);
+        return;
+      }
+
+      if (menuText === "👤 افزودن ادمین") {
+        await setAdminState(env, userId, "awaiting_newadmin", {});
+        await ctx.reply("آیدی عددی تلگرام کاربر جدید را بفرستید.");
+        return;
+      }
+    }
 
     // Admin: receiving files for an active upload session
     if (admin) {
@@ -580,15 +702,68 @@ function buildBot(env: Env): Bot {
         }
       }
 
-      // Admin: conversation steps (title / description)
+      // Admin: conversation steps (title / description / menu-driven flows)
       const state = await getAdminState(env, userId);
       if (state && ctx.message.text) {
         const text = ctx.message.text.trim();
+
+        if (state.state === "awaiting_addchannel") {
+          const username = text;
+          if (!username.startsWith("@")) {
+            await ctx.reply("یوزرنیم باید با @ شروع شود. دوباره بفرستید یا 🔙 برگشت را بزنید.");
+            return;
+          }
+          try {
+            const chat = await ctx.api.getChat(username);
+            const title = "title" in chat ? chat.title ?? null : null;
+            await env.DB.prepare(
+              `INSERT INTO channels (channel_id, username, title, created_at) VALUES (?, ?, ?, ?)
+               ON CONFLICT(channel_id) DO UPDATE SET username = excluded.username, title = excluded.title`
+            ).bind(String(chat.id), username, title, now()).run();
+            await clearAdminState(env, userId);
+            await ctx.reply(`کانال ${username} اضافه شد.`, { reply_markup: CHANNEL_MENU });
+          } catch {
+            await ctx.reply(`کانال ${username} پیدا نشد. مطمئن شوید ربات در آن عضو است.`);
+          }
+          return;
+        }
+
+        if (state.state === "awaiting_removechannel") {
+          await env.DB.prepare("DELETE FROM channels WHERE username = ?").bind(text).run();
+          await clearAdminState(env, userId);
+          await ctx.reply(`کانال ${text} حذف شد.`, { reply_markup: CHANNEL_MENU });
+          return;
+        }
+
+        if (state.state === "awaiting_autodelete") {
+          const seconds = parseInt(text, 10);
+          if (!Number.isFinite(seconds) || seconds <= 0) {
+            await ctx.reply("عدد نامعتبر است. یک عدد صحیح مثبت بفرستید.");
+            return;
+          }
+          await setSetting(env, "auto_delete_seconds", String(seconds));
+          await clearAdminState(env, userId);
+          await ctx.reply(`زمان حذف خودکار روی ${seconds} ثانیه تنظیم شد.`, { reply_markup: SETTINGS_MENU });
+          return;
+        }
+
+        if (state.state === "awaiting_newadmin") {
+          if (!/^\d+$/.test(text)) {
+            await ctx.reply("آیدی باید فقط عدد باشد.");
+            return;
+          }
+          await env.DB.prepare("INSERT OR IGNORE INTO admins (telegram_id, created_at) VALUES (?, ?)").bind(text, now()).run();
+          await clearAdminState(env, userId);
+          await ctx.reply(`کاربر ${text} حالا ادمین است.`, { reply_markup: SETTINGS_MENU });
+          return;
+        }
+
         if (state.state === "awaiting_title") {
           await setAdminState(env, userId, "awaiting_description", { ...state.context, title: text });
           await ctx.reply("Got it. Now send a description, or /skip to leave it empty.");
           return;
         }
+
         if (state.state === "awaiting_description") {
           const description = text === "/skip" ? null : text;
           const channels = await getAllChannels(env);
@@ -687,6 +862,7 @@ async function sendArchiveFiles(
     await ctx.reply("This link has no files.");
     return;
   }
+
   const chatId = ctx.chat!.id;
   for (const f of files) {
     const sent = await sendStoredFile(ctx, chatId, f);
@@ -718,6 +894,7 @@ async function handleGroupMessage(ctx: Context, env: Env) {
   if (existing && now() - existing.created_at < GROUP_PROMPT_DEBOUNCE_SECONDS * 1000) {
     return; // already nudged recently
   }
+
   if (existing) {
     try {
       await ctx.api.deleteMessage(chat.id, existing.message_id);
@@ -730,6 +907,7 @@ async function handleGroupMessage(ctx: Context, env: Env) {
   const displayName = escapeHtml(`${from.first_name ?? ""} ${from.last_name ?? ""}`.trim() || "User");
   const userLink = from.username ? `https://t.me/${from.username}` : `tg://user?id=${from.id}`;
   const mention = `<a href="${userLink}">${displayName}</a>`;
+
   const sent = await ctx.api.sendMessage(
     chat.id,
     `${mention},\nTo use this group, please join our official channel(s) first:\nOnce you've joined, come back to this group.`,
