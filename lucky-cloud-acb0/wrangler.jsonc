@@ -1,6 +1,6 @@
 {
   "name": "sungenko-forcejoin-bot",
-  "main": "src/index.ts",
+  "main": "index.ts",
   "compatibility_date": "2026-07-20",
   "d1_databases": [
     {
