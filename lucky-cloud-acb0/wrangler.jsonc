@@ -2,7 +2,6 @@
   "name": "sungenko-forcejoin-bot",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
-
   "d1_databases": [
     {
       "binding": "DB",
@@ -10,9 +9,11 @@
       "database_id": "3d23948c-2bf6-4fb9-96d5-27ed8c441d5d"
     }
   ],
-
   "vars": {
     "BOT_USERNAME": "RealSunGenko",
     "ENVIRONMENT": "development"
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
   }
 }
