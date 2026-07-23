@@ -106,3 +106,10 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+-- Tracks what text input the bot is currently waiting for from an admin
+CREATE TABLE IF NOT EXISTS admin_state (
+    telegram_id TEXT PRIMARY KEY,
+    state TEXT NOT NULL,
+    context_data TEXT, -- JSON blob, e.g. {"archiveId": 5}
+    updated_at INTEGER NOT NULL
+);
