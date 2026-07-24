@@ -62,6 +62,7 @@ const T = {
     not_joined_yet: "هنوز در همه کانال‌ها عضو نشده‌اید.",
     verified_sending: "تأیید شد! در حال ارسال فایل‌ها...",
     archive_empty: "این لینک هیچ فایلی ندارد.",
+    auto_delete_notice: "⚠️ توجه: این فایل‌ها تا {seconds} ثانیه دیگر برای همیشه از این چت پاک می‌شوند.\nهمین حالا آن‌ها را در گالری یا «پیام‌های ذخیره‌شده»ی خودتان ذخیره کنید.",
     testbit_reply: "ربات فعال است ✔️",
     creator_reply: "این ربات با grammy + Cloudflare Workers ساخته شده است.",
     group_join_notice: "برای استفاده از این گروه، لطفاً ابتدا در کانال(های) زیر عضو شوید:\nبعد از عضویت، به گروه برگردید.",
@@ -185,6 +186,7 @@ const T = {
     not_joined_yet: "You haven't joined everything yet.",
     verified_sending: "Verified! Sending your files...",
     archive_empty: "This link has no files.",
+    auto_delete_notice: "⚠️ Note: these files will be permanently deleted from this chat in {seconds} seconds.\nSave them to your gallery or \"Saved Messages\" right now.",
     testbit_reply: "Bot is active ✔️",
     creator_reply: "This bot was built with grammy + Cloudflare Workers.",
     group_join_notice: "To use this group, please join the following channel(s) first:\nCome back once you've joined.",
@@ -1784,6 +1786,12 @@ async function sendArchiveFiles(ctx: Context, env: Env, userId: number, archive:
   }
 
   const chatId = ctx.chat!.id;
+
+  if (archive.delete_after_seconds && archive.delete_after_seconds > 0) {
+    const notice = await ctx.reply(t(lang, "auto_delete_notice", { seconds: archive.delete_after_seconds }));
+    await trackSentMessage(env, userId, chatId, notice.message_id, archive.id, archive.delete_after_seconds);
+  }
+
   for (const f of files) {
     const sent = await sendStoredFile(ctx, chatId, f);
     if (sent && "message_id" in sent) {
