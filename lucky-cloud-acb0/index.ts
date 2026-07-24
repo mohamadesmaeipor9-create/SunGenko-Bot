@@ -996,6 +996,18 @@ async function handleConnectChannelInput(ctx: Context, env: Env, userId: number,
   }
 }
 
+async function persistPendingArchiveMeta(env: Env, sessionId: number, title: string, description: string | null) {
+  await env.DB.prepare(
+    "UPDATE upload_sessions SET pending_title = ?, pending_description = ?, selected_channels = '[]', updated_at = ? WHERE id = ?"
+  ).bind(title, description, now(), sessionId).run();
+}
+
+async function getPendingArchiveMeta(env: Env, sessionId: number) {
+  return env.DB.prepare(
+    "SELECT pending_title, pending_description, selected_channels FROM upload_sessions WHERE id = ? AND status = 'collecting'"
+  ).bind(sessionId).first<{ pending_title: string | null; pending_description: string | null; selected_channels: string | null }>();
+}
+
 async function proceedToChannelSelection(ctx: Context, env: Env, userId: number, lang: Lang, sessionId: number, title: string, descriptionInput: string) {
   const description = descriptionInput === "-" || matchAnyLang(descriptionInput, "btn_skip") ? null : descriptionInput;
   const channels = await getAllChannels(env);
@@ -1004,7 +1016,8 @@ async function proceedToChannelSelection(ctx: Context, env: Env, userId: number,
     await clearAdminState(env, userId);
     return;
   }
-  await setAdminState(env, userId, "awaiting_channels", { sessionId, title, description, selected: [] });
+  await persistPendingArchiveMeta(env, sessionId, title, description);
+  await setAdminState(env, userId, "awaiting_channels", { sessionId });
   await ctx.reply(t(lang, "upload_ask_channels"), {
     reply_markup: buildChannelPickerKeyboard(lang, channels, [], sessionId),
   });
@@ -1274,47 +1287,53 @@ async function proceedToChannelSelectionFromCallback(ctx: Context, env: Env, use
     await clearAdminState(env, userId);
     return;
   }
-  await setAdminState(env, userId, "awaiting_channels", { sessionId, title, description, selected: [] });
+  await persistPendingArchiveMeta(env, sessionId, title, description);
+  await setAdminState(env, userId, "awaiting_channels", { sessionId });
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(t(lang, "upload_ask_channels"), {
     reply_markup: buildChannelPickerKeyboard(lang, channels, [], sessionId),
   });
 }
 
+// Channel selection reads/writes go straight to the upload_sessions row
+// (keyed by the sessionId embedded in the callback data itself) instead of
+// relying on admin_state staying perfectly in sync across many taps.
 async function handleChannelPickerCallback(ctx: Context, env: Env, userId: number, lang: Lang, ns: string, rest: string[]) {
   if (ns === "chsel") {
     const [sessionIdStr, channelIdStr] = rest;
-    const state = await getAdminState(env, userId);
-    if (!state || state.state !== "awaiting_channels") {
+    const sessionId = parseInt(sessionIdStr, 10);
+    const meta = await getPendingArchiveMeta(env, sessionId);
+    if (!meta || !meta.pending_title) {
       await ctx.answerCallbackQuery();
       return;
     }
-    const selected: number[] = (state.context.selected as number[]) ?? [];
+    const selected: number[] = meta.selected_channels ? JSON.parse(meta.selected_channels) : [];
     const channelId = parseInt(channelIdStr, 10);
     const idx = selected.indexOf(channelId);
     if (idx >= 0) selected.splice(idx, 1);
     else selected.push(channelId);
-    await setAdminState(env, userId, "awaiting_channels", { ...state.context, selected });
+    await env.DB.prepare("UPDATE upload_sessions SET selected_channels = ?, updated_at = ? WHERE id = ?")
+      .bind(JSON.stringify(selected), now(), sessionId).run();
     const channels = await getAllChannels(env);
-    await ctx.editMessageReplyMarkup({ reply_markup: buildChannelPickerKeyboard(lang, channels, selected, parseInt(sessionIdStr, 10)) });
+    await ctx.editMessageReplyMarkup({ reply_markup: buildChannelPickerKeyboard(lang, channels, selected, sessionId) });
     await ctx.answerCallbackQuery();
     return;
   }
 
   if (ns === "chconfirm") {
     const sessionId = parseInt(rest[0], 10);
-    const state = await getAdminState(env, userId);
-    if (!state || state.state !== "awaiting_channels") {
+    const meta = await getPendingArchiveMeta(env, sessionId);
+    if (!meta || !meta.pending_title) {
       await ctx.answerCallbackQuery();
       return;
     }
-    const selected: number[] = (state.context.selected as number[]) ?? [];
+    const selected: number[] = meta.selected_channels ? JSON.parse(meta.selected_channels) : [];
     if (selected.length === 0) {
       await ctx.answerCallbackQuery({ text: t(lang, "upload_need_one_channel") });
       return;
     }
-    const title = state.context.title as string;
-    const description = (state.context.description as string | null) ?? null;
+    const title = meta.pending_title;
+    const description = meta.pending_description ?? null;
     const fileCount = (await getSessionFiles(env, sessionId)).length;
     const code = await finalizeArchive(env, sessionId, title, description, selected);
     await clearAdminState(env, userId);
