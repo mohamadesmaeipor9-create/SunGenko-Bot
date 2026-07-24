@@ -1,4 +1,8 @@
 /**
+ * BUILD MARKER: v2.1-channelpicker-fix (2026-07-24)
+ * If you don't see this comment in your local file, you are NOT looking
+ * at the patched version — re-download and fully replace index.ts.
+ *
  * SunGenko Force-Join + Archive (file-store) Bot — v2
  * Built with grammy, running on Cloudflare Workers + D1.
  *
