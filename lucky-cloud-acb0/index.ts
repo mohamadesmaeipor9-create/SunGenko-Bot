@@ -753,6 +753,16 @@ function buildBot(env: Env): Bot {
       } catch {
         /* ignore */
       }
+      // TEMPORARY DIAGNOSTIC: show the real error to the admin so we can
+      // pinpoint the bug instead of guessing. Safe to remove later.
+      if (await isAdmin(env, userId)) {
+        const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        try {
+          await ctx.reply(`⚠️ DEBUG ERROR:\n${msg.slice(0, 800)}`);
+        } catch {
+          /* ignore */
+        }
+      }
     }
   });
 
