@@ -112,7 +112,8 @@ const T = {
     upload_file_added: "📤 حالت آپلود\n\nفایل‌های دریافت‌شده: {count}\nبرای پایان دادن یا لغو، از دکمه‌های زیر استفاده کنید.",
     upload_no_files: "هنوز فایلی ارسال نکرده‌اید. یک فایل بفرستید یا لغو کنید.",
     upload_ask_title: "✅ {count} فایل دریافت شد.\n\nحالا یک عنوان برای این آرشیو ارسال کنید:",
-    upload_ask_description: "عنوان: «{title}»\n\nحالا توضیحات این آرشیو را ارسال کنید (یا رد کنید):",
+    upload_ask_description_fa: "عنوان: «{title}»\n\nحالا توضیحات فارسی این آرشیو را ارسال کنید (یا رد کنید):",
+    upload_ask_description_en: "حالا توضیحات انگلیسی این آرشیو را ارسال کنید (یا رد کنید):",
     upload_ask_channels: "کدام کانال(ها) برای دریافت این آرشیو الزامی باشند؟\nروی موارد مورد نظر بزنید، سپس تأیید کنید.",
     upload_need_one_channel: "حداقل یک کانال انتخاب کنید.",
     upload_need_channels_first: "هنوز هیچ کانالی متصل نیست. ابتدا از بخش «مدیریت کانال‌ها» یک کانال اضافه کنید.",
@@ -124,22 +125,30 @@ const T = {
     no_archives_yet: "هنوز هیچ آرشیوی ساخته نشده است.",
     archives_list_title: "🗂 آرشیوها ({count}):",
     archive_detail:
-      "🗂 {title}\n{status}\n\nتوضیحات: {description}\nفایل‌ها: {file_count}\nبازدید: {views}\nکد: {code}\nکانال(های) لازم: {channels}",
+      "🗂 {title}\n{status}\n\nتوضیحات (فارسی): {description}\nتوضیحات (English): {description_en}\nفایل‌ها: {file_count}\nبازدید: {views}\nکد: {code}\nکانال(های) لازم: {channels}",
     archive_active: "🟢 فعال",
     archive_inactive: "🔴 غیرفعال",
     no_description: "—",
     btn_edit_title: "✏️ ویرایش عنوان",
-    btn_edit_desc: "✏️ ویرایش توضیحات",
+    btn_edit_desc_fa: "✏️ ویرایش توضیحات فارسی",
+    btn_edit_desc_en: "✏️ ویرایش توضیحات انگلیسی",
     btn_manage_files: "🖼 مدیریت فایل‌ها",
     btn_toggle_active: "🔁 تغییر وضعیت فعال/غیرفعال",
     btn_delete_archive: "🗑 حذف آرشیو",
+    btn_viewers: "👥 بازدیدکنندگان",
+    viewers_title: "👥 بازدیدکنندگان «{title}» ({count} نفر):",
+    viewer_line: "• {name} — آیدی: {id} — بازدید: {count} بار",
+    no_username: "بدون یوزرنیم",
+    no_viewers_yet: "هنوز کسی این آرشیو را دریافت نکرده است.",
     archive_delete_confirm: "آیا از حذف کامل آرشیو «{title}» و همه فایل‌های آن مطمئن هستید؟ این کار برگشت‌ناپذیر است.",
     archive_deleted_ok: "🗑 آرشیو حذف شد.",
     archive_status_changed: "✅ وضعیت آرشیو تغییر کرد.",
     edit_title_prompt: "عنوان جدید را ارسال کنید:",
-    edit_desc_prompt: "توضیحات جدید را ارسال کنید (یا برای خالی کردن، - ارسال کنید):",
+    edit_desc_fa_prompt: "توضیحات فارسی جدید را ارسال کنید (یا برای خالی کردن، - ارسال کنید):",
+    edit_desc_en_prompt: "توضیحات انگلیسی جدید را ارسال کنید (یا برای خالی کردن، - ارسال کنید):",
     title_updated: "✅ عنوان به‌روزرسانی شد.",
-    desc_updated: "✅ توضیحات به‌روزرسانی شد.",
+    desc_fa_updated: "✅ توضیحات فارسی به‌روزرسانی شد.",
+    desc_en_updated: "✅ توضیحات انگلیسی به‌روزرسانی شد.",
     manage_files_title: "🖼 فایل‌های «{title}» ({count}):\n\nبرای حذف روی فایل مورد نظر بزنید، یا فایل جدید ارسال کنید تا اضافه شود.",
     file_added_to_archive: "✅ فایل اضافه شد. مجموع: {count}",
     file_deleted_ok: "🗑 فایل حذف شد.",
@@ -156,6 +165,23 @@ const T = {
     info_title: "🔍 اطلاعات ربات",
     info_body:
       "نام کاربری: @{username}\nمحیط: {env}\nمدیران: {admins}\nکانال‌های متصل: {channels}\nآرشیوها: {archives}\nتاخیر پیش‌فرض حذف خودکار: {autodel} ثانیه",
+
+    // ads management
+    btn_ads: "📢 مدیریت تبلیغات",
+    ads_panel_title: "📢 مدیریت تبلیغات\n\nهر زبان پنجره‌ی جدای خودش را دارد:",
+    ad_detail: "🖼 تبلیغ {lang_name}\n\nعکس: {has_photo}\nمتن: {caption}",
+    has_photo_yes: "دارد ✅",
+    has_photo_no: "ندارد",
+    btn_edit_ad: "✏️ ویرایش تبلیغ",
+    btn_delete_ad: "🗑 حذف تبلیغ",
+    btn_broadcast_ad: "📢 ارسال همگانی همین تبلیغ",
+    edit_ad_prompt: "یک عکس همراه کپشن ارسال کنید (کپشن، متن تبلیغ خواهد بود)، یا اگر می‌خواهید بدون عکس فقط متن تبلیغ باشد، صرفاً متن را ارسال کنید.",
+    ad_updated_ok: "✅ تبلیغ به‌روزرسانی شد.",
+    ad_delete_confirm: "آیا از حذف تبلیغ {lang_name} مطمئن هستید؟",
+    ad_deleted_ok: "🗑 تبلیغ حذف شد.",
+    ad_broadcast_confirm: "این تبلیغ برای همه‌ی کاربران با زبان {lang_name} ارسال شود؟",
+    no_ad_set: "هنوز تبلیغی برای این زبان تنظیم نشده است.",
+    choose_language_prompt: "🌐 لطفاً زبان خود را انتخاب کنید:\nPlease choose your language:",
 
     // broadcast
     broadcast_prompt: "پیامی که می‌خواهید برای همه کاربران ارسال شود را بفرستید (متن، عکس، ویدیو و ...).",
@@ -232,7 +258,8 @@ const T = {
     upload_file_added: "📤 Upload mode\n\nFiles received: {count}\nUse the buttons below to finish or cancel.",
     upload_no_files: "You haven't sent any files yet. Send a file or cancel.",
     upload_ask_title: "✅ {count} file(s) received.\n\nNow send a title for this archive:",
-    upload_ask_description: "Title: \"{title}\"\n\nNow send a description for this archive (or skip):",
+    upload_ask_description_fa: "Title: \"{title}\"\n\nNow send the Persian description for this archive (or skip):",
+    upload_ask_description_en: "Now send the English description for this archive (or skip):",
     upload_ask_channels: "Which channel(s) should be required to unlock this archive?\nTap to toggle, then confirm.",
     upload_need_one_channel: "Select at least one channel.",
     upload_need_channels_first: "No channels are connected yet. Add one from \"Channel Management\" first.",
@@ -243,22 +270,30 @@ const T = {
     no_archives_yet: "No archives created yet.",
     archives_list_title: "🗂 Archives ({count}):",
     archive_detail:
-      "🗂 {title}\n{status}\n\nDescription: {description}\nFiles: {file_count}\nViews: {views}\nCode: {code}\nRequired channel(s): {channels}",
+      "🗂 {title}\n{status}\n\nDescription (Persian): {description}\nDescription (English): {description_en}\nFiles: {file_count}\nViews: {views}\nCode: {code}\nRequired channel(s): {channels}",
     archive_active: "🟢 Active",
     archive_inactive: "🔴 Inactive",
     no_description: "—",
     btn_edit_title: "✏️ Edit Title",
-    btn_edit_desc: "✏️ Edit Description",
+    btn_edit_desc_fa: "✏️ Edit Persian Description",
+    btn_edit_desc_en: "✏️ Edit English Description",
     btn_manage_files: "🖼 Manage Files",
     btn_toggle_active: "🔁 Toggle Active/Inactive",
     btn_delete_archive: "🗑 Delete Archive",
+    btn_viewers: "👥 Viewers",
+    viewers_title: "👥 Viewers of \"{title}\" ({count}):",
+    viewer_line: "• {name} — ID: {id} — Views: {count}",
+    no_username: "no username",
+    no_viewers_yet: "No one has received this archive yet.",
     archive_delete_confirm: "Are you sure you want to permanently delete archive \"{title}\" and all its files? This cannot be undone.",
     archive_deleted_ok: "🗑 Archive deleted.",
     archive_status_changed: "✅ Archive status changed.",
     edit_title_prompt: "Send the new title:",
-    edit_desc_prompt: "Send the new description (or send - to clear it):",
+    edit_desc_fa_prompt: "Send the new Persian description (or send - to clear it):",
+    edit_desc_en_prompt: "Send the new English description (or send - to clear it):",
     title_updated: "✅ Title updated.",
-    desc_updated: "✅ Description updated.",
+    desc_fa_updated: "✅ Persian description updated.",
+    desc_en_updated: "✅ English description updated.",
     manage_files_title: "🖼 Files in \"{title}\" ({count}):\n\nTap a file to delete it, or send a new file to add it.",
     file_added_to_archive: "✅ File added. Total: {count}",
     file_deleted_ok: "🗑 File deleted.",
@@ -273,6 +308,23 @@ const T = {
     info_title: "🔍 Bot Info",
     info_body:
       "Username: @{username}\nEnvironment: {env}\nAdmins: {admins}\nConnected channels: {channels}\nArchives: {archives}\nDefault auto-delete delay: {autodel}s",
+
+    // ads management
+    btn_ads: "📢 Ads Management",
+    ads_panel_title: "📢 Ads Management\n\nEach language has its own separate window:",
+    ad_detail: "🖼 {lang_name} Ad\n\nPhoto: {has_photo}\nText: {caption}",
+    has_photo_yes: "Yes ✅",
+    has_photo_no: "None",
+    btn_edit_ad: "✏️ Edit Ad",
+    btn_delete_ad: "🗑 Delete Ad",
+    btn_broadcast_ad: "📢 Broadcast This Ad",
+    edit_ad_prompt: "Send a photo with a caption (the caption becomes the ad text), or just send text if you want a photo-less ad.",
+    ad_updated_ok: "✅ Ad updated.",
+    ad_delete_confirm: "Are you sure you want to delete the {lang_name} ad?",
+    ad_deleted_ok: "🗑 Ad deleted.",
+    ad_broadcast_confirm: "Send this ad to all {lang_name}-language users?",
+    no_ad_set: "No ad set for this language yet.",
+    choose_language_prompt: "🌐 لطفاً زبان خود را انتخاب کنید:\nPlease choose your language:",
 
     broadcast_prompt: "Send the message you want broadcast to all users (text, photo, video, etc.).",
     broadcast_sending: "⏳ Sending to {count} users...",
@@ -329,6 +381,7 @@ type ArchiveRow = {
   code: string;
   title: string;
   description: string | null;
+  description_en: string | null;
   is_active: number;
   delete_after_seconds: number | null;
   views: number;
@@ -419,12 +472,12 @@ async function adminCount(env: Env): Promise<number> {
   return row?.c ?? 0;
 }
 
-async function upsertUser(env: Env, telegramId: number) {
+async function upsertUser(env: Env, telegramId: number, username?: string | null, firstName?: string | null) {
   const t0 = now();
   await env.DB.prepare(
-    `INSERT INTO users (telegram_id, first_seen_at, last_seen_at) VALUES (?, ?, ?)
-     ON CONFLICT(telegram_id) DO UPDATE SET last_seen_at = excluded.last_seen_at`
-  ).bind(String(telegramId), t0, t0).run();
+    `INSERT INTO users (telegram_id, first_seen_at, last_seen_at, username, first_name) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(telegram_id) DO UPDATE SET last_seen_at = excluded.last_seen_at, username = excluded.username, first_name = excluded.first_name`
+  ).bind(String(telegramId), t0, t0, username ?? null, firstName ?? null).run();
 }
 
 async function getUserLang(env: Env, telegramId: number): Promise<Lang> {
@@ -432,8 +485,61 @@ async function getUserLang(env: Env, telegramId: number): Promise<Lang> {
   return row?.lang === "en" ? "en" : DEFAULT_LANG;
 }
 
+/** Returns null if the user has never explicitly picked a language yet
+ *  (used to decide whether to show the language picker on /start). */
+async function getRawUserLang(env: Env, telegramId: number): Promise<Lang | null> {
+  const row = await env.DB.prepare("SELECT lang FROM users WHERE telegram_id = ?").bind(String(telegramId)).first<{ lang: string | null }>();
+  if (row?.lang === "en") return "en";
+  if (row?.lang === "fa") return "fa";
+  return null;
+}
+
 async function setUserLang(env: Env, telegramId: number, lang: Lang) {
   await env.DB.prepare("UPDATE users SET lang = ? WHERE telegram_id = ?").bind(lang, String(telegramId)).run();
+}
+
+// ---------- ads (per-language promo photo + caption, edited outside the upload flow) ----------
+
+async function getAd(env: Env, lang: Lang) {
+  return env.DB.prepare("SELECT file_id, file_type, caption FROM ads WHERE lang = ?")
+    .bind(lang).first<{ file_id: string | null; file_type: string | null; caption: string | null }>();
+}
+
+async function setAd(env: Env, lang: Lang, fileId: string | null, fileType: string | null, caption: string | null) {
+  await env.DB.prepare(
+    `INSERT INTO ads (lang, file_id, file_type, caption, updated_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(lang) DO UPDATE SET file_id = excluded.file_id, file_type = excluded.file_type, caption = excluded.caption, updated_at = excluded.updated_at`
+  ).bind(lang, fileId, fileType, caption, now()).run();
+}
+
+async function clearAd(env: Env, lang: Lang) {
+  await setAd(env, lang, null, null, null);
+}
+
+async function getUserIdsByLang(env: Env, lang: Lang): Promise<string[]> {
+  const query = lang === "fa"
+    ? "SELECT telegram_id FROM users WHERE lang = 'fa' OR lang IS NULL"
+    : "SELECT telegram_id FROM users WHERE lang = 'en'";
+  const res = await env.DB.prepare(query).all<{ telegram_id: string }>();
+  return (res.results ?? []).map((r) => r.telegram_id);
+}
+
+/** Sends the configured ad for this language, if one is set. Used both on
+ *  plain /start and appended at the end of every archive delivery. */
+async function sendAdIfConfigured(ctx: Context, env: Env, lang: Lang) {
+  const ad = await getAd(env, lang);
+  if (!ad || (!ad.file_id && !ad.caption)) return;
+  try {
+    if (ad.file_id && ad.file_type) {
+      const method = SEND_METHOD[ad.file_type] ?? "sendPhoto";
+      // @ts-ignore - dynamic method dispatch on the Bot API
+      await ctx.api[method](ctx.chat!.id, ad.file_id, ad.caption ? { caption: ad.caption } : undefined);
+    } else if (ad.caption) {
+      await ctx.reply(ad.caption);
+    }
+  } catch {
+    /* never let a broken ad block the rest of the flow */
+  }
 }
 
 async function getSetting(env: Env, key: string, fallback: string): Promise<string> {
@@ -569,7 +675,8 @@ async function finalizeArchive(
   env: Env,
   sessionId: number,
   title: string,
-  description: string | null,
+  descriptionFa: string | null,
+  descriptionEn: string | null,
   channelIds: number[]
 ): Promise<string> {
   const files = await getSessionFiles(env, sessionId);
@@ -578,9 +685,9 @@ async function finalizeArchive(
   const defaultDelete = parseInt(await getSetting(env, "auto_delete_seconds", String(DEFAULT_AUTO_DELETE_SECONDS)), 10);
 
   const archiveRes = await env.DB.prepare(
-    `INSERT INTO archives (code, title, description, delete_after_seconds, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 1, ?, ?)`
-  ).bind(code, title, description, defaultDelete, t0, t0).run();
+    `INSERT INTO archives (code, title, description, description_en, delete_after_seconds, is_active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?)`
+  ).bind(code, title, descriptionFa, descriptionEn, defaultDelete, t0, t0).run();
   const archiveId = archiveRes.meta.last_row_id as number;
 
   const statements = [
@@ -601,19 +708,19 @@ async function finalizeArchive(
 }
 
 async function getArchiveByCode(env: Env, code: string): Promise<ArchiveRow | null> {
-  const row = await env.DB.prepare("SELECT id, code, title, description, is_active, delete_after_seconds, views FROM archives WHERE code = ?")
+  const row = await env.DB.prepare("SELECT id, code, title, description, description_en, is_active, delete_after_seconds, views FROM archives WHERE code = ?")
     .bind(code).first<ArchiveRow>();
   return row ?? null;
 }
 
 async function getArchiveById(env: Env, id: number): Promise<ArchiveRow | null> {
-  const row = await env.DB.prepare("SELECT id, code, title, description, is_active, delete_after_seconds, views FROM archives WHERE id = ?")
+  const row = await env.DB.prepare("SELECT id, code, title, description, description_en, is_active, delete_after_seconds, views FROM archives WHERE id = ?")
     .bind(id).first<ArchiveRow>();
   return row ?? null;
 }
 
 async function getAllArchives(env: Env): Promise<ArchiveRow[]> {
-  const res = await env.DB.prepare("SELECT id, code, title, description, is_active, delete_after_seconds, views FROM archives ORDER BY id DESC").all<ArchiveRow>();
+  const res = await env.DB.prepare("SELECT id, code, title, description, description_en, is_active, delete_after_seconds, views FROM archives ORDER BY id DESC").all<ArchiveRow>();
   return res.results ?? [];
 }
 
@@ -644,6 +751,26 @@ async function countEventsSince(env: Env, type: string, sinceMs: number): Promis
 
 async function countEventsTotal(env: Env, type: string): Promise<number> {
   const row = await env.DB.prepare("SELECT COUNT(*) as c FROM events WHERE type = ?").bind(type).first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+async function getArchiveViewers(env: Env, code: string, limit: number, offset: number) {
+  const res = await env.DB.prepare(
+    `SELECT e.telegram_id as telegram_id, COUNT(*) as view_count, u.username as username, u.first_name as first_name
+     FROM events e
+     LEFT JOIN users u ON u.telegram_id = e.telegram_id
+     WHERE e.type = 'archive_delivered' AND e.ref_id = ?
+     GROUP BY e.telegram_id
+     ORDER BY view_count DESC
+     LIMIT ? OFFSET ?`
+  ).bind(code, limit, offset).all<{ telegram_id: string; view_count: number; username: string | null; first_name: string | null }>();
+  return res.results ?? [];
+}
+
+async function countArchiveViewers(env: Env, code: string): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(DISTINCT telegram_id) as c FROM events WHERE type = 'archive_delivered' AND ref_id = ?"
+  ).bind(code).first<{ c: number }>();
   return row?.c ?? 0;
 }
 
@@ -703,6 +830,7 @@ function mainReplyKeyboard(lang: Lang): Keyboard {
     .text(t(lang, "btn_channels")).text(t(lang, "btn_archives")).row()
     .text(t(lang, "btn_stats")).text(t(lang, "btn_info")).row()
     .text(t(lang, "btn_broadcast")).row()
+    .text(t(lang, "btn_ads")).row()
     .text(t(lang, "btn_settings")).row()
     .resized();
 }
@@ -722,23 +850,19 @@ function buildBot(env: Env): Bot {
   bot.command("start", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
-    await upsertUser(env, userId);
-    const lang = await getUserLang(env, userId);
-    const payload = ctx.match?.toString().trim();
+    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name);
+    const payload = ctx.match?.toString().trim() ?? "";
+    const rawLang = await getRawUserLang(env, userId);
 
-    if (payload) {
-      await logEvent(env, "start", userId, payload);
-      await deliverArchive(ctx, env, userId, payload, lang);
+    if (rawLang === null) {
+      const kb = new InlineKeyboard()
+        .text("🇮🇷 فارسی", `pickstartlang:fa:${payload}`)
+        .text("🇬🇧 English", `pickstartlang:en:${payload}`);
+      await ctx.reply(t(DEFAULT_LANG, "choose_language_prompt"), { reply_markup: kb });
       return;
     }
 
-    await logEvent(env, "start", userId);
-    const admin = await isAdmin(env, userId);
-    if (admin) {
-      await ctx.reply(t(lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(lang) });
-    } else {
-      await ctx.reply(t(lang, "welcome_user"));
-    }
+    await performStart(ctx, env, userId, rawLang, payload);
   });
 
   // ----- callback queries -----
@@ -783,7 +907,7 @@ function buildBot(env: Env): Bot {
 
     if (chatType !== "private") return;
 
-    await upsertUser(env, userId);
+    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name);
     const lang = await getUserLang(env, userId);
     const admin = await isAdmin(env, userId);
 
@@ -867,6 +991,31 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       await sendSettingsWindow(ctx, env, lang);
       return true;
     }
+    if (matchAnyLang(text, "btn_ads")) {
+      await sendAdsPanel(ctx, env, lang);
+      return true;
+    }
+  }
+
+  // ---- editing an ad: accepts a photo+caption OR a text-only message ----
+  const adState = await getAdminState(env, userId);
+  if (adState && adState.state === "editing_ad") {
+    const targetLang = (adState.context.lang as Lang) ?? "fa";
+    const file = ctx.message ? detectFile(ctx.message) : null;
+    if (file && file.file_type === "photo") {
+      await setAd(env, targetLang, file.file_id, "photo", file.caption ?? null);
+      await clearAdminState(env, userId);
+      await ctx.reply(t(lang, "ad_updated_ok"));
+      return true;
+    }
+    if (text) {
+      await setAd(env, targetLang, null, null, text);
+      await clearAdminState(env, userId);
+      await ctx.reply(t(lang, "ad_updated_ok"));
+      return true;
+    }
+    await ctx.reply(t(lang, "edit_ad_prompt"));
+    return true;
   }
 
   // ---- active upload session: receiving files ----
@@ -904,18 +1053,32 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       }
       case "awaiting_title": {
         const sessionId = state.context.sessionId as number;
-        await setAdminState(env, userId, "awaiting_description", { sessionId, title: text });
-        await ctx.reply(t(lang, "upload_ask_description", { title: text }), {
+        await setAdminState(env, userId, "awaiting_description_fa", { sessionId, title: text });
+        await ctx.reply(t(lang, "upload_ask_description_fa", { title: text }), {
           reply_markup: new InlineKeyboard()
-            .text(t(lang, "btn_skip"), `up:skipdesc:${sessionId}`)
+            .text(t(lang, "btn_skip"), `up:skipdescfa:${sessionId}`)
             .text(t(lang, "btn_cancel"), `up:cancel:${sessionId}`),
         });
         return true;
       }
-      case "awaiting_description": {
+      case "awaiting_description_fa": {
         const sessionId = state.context.sessionId as number;
         const title = state.context.title as string;
-        await proceedToChannelSelection(ctx, env, userId, lang, sessionId, title, text);
+        const descriptionFa = normalizeDescriptionInput(text);
+        await setAdminState(env, userId, "awaiting_description_en", { sessionId, title, descriptionFa });
+        await ctx.reply(t(lang, "upload_ask_description_en"), {
+          reply_markup: new InlineKeyboard()
+            .text(t(lang, "btn_skip"), `up:skipdescen:${sessionId}`)
+            .text(t(lang, "btn_cancel"), `up:cancel:${sessionId}`),
+        });
+        return true;
+      }
+      case "awaiting_description_en": {
+        const sessionId = state.context.sessionId as number;
+        const title = state.context.title as string;
+        const descriptionFa = (state.context.descriptionFa as string | null) ?? null;
+        const descriptionEn = normalizeDescriptionInput(text);
+        await proceedToChannelSelection(ctx, env, userId, lang, sessionId, title, descriptionFa, descriptionEn);
         return true;
       }
       case "awaiting_broadcast": {
@@ -931,12 +1094,21 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
         await sendArchiveDetailWindow(ctx, env, lang, archiveId, undefined);
         return true;
       }
-      case "editing_archive_desc": {
+      case "editing_archive_desc_fa": {
         const archiveId = state.context.archiveId as number;
         const desc = text === "-" ? null : text;
         await env.DB.prepare("UPDATE archives SET description = ?, updated_at = ? WHERE id = ?").bind(desc, now(), archiveId).run();
         await clearAdminState(env, userId);
-        await ctx.reply(t(lang, "desc_updated"));
+        await ctx.reply(t(lang, "desc_fa_updated"));
+        await sendArchiveDetailWindow(ctx, env, lang, archiveId, undefined);
+        return true;
+      }
+      case "editing_archive_desc_en": {
+        const archiveId = state.context.archiveId as number;
+        const desc = text === "-" ? null : text;
+        await env.DB.prepare("UPDATE archives SET description_en = ?, updated_at = ? WHERE id = ?").bind(desc, now(), archiveId).run();
+        await clearAdminState(env, userId);
+        await ctx.reply(t(lang, "desc_en_updated"));
         await sendArchiveDetailWindow(ctx, env, lang, archiveId, undefined);
         return true;
       }
@@ -1012,27 +1184,30 @@ async function handleConnectChannelInput(ctx: Context, env: Env, userId: number,
   }
 }
 
-async function persistPendingArchiveMeta(env: Env, sessionId: number, title: string, description: string | null) {
+async function persistPendingArchiveMeta(env: Env, sessionId: number, title: string, descriptionFa: string | null, descriptionEn: string | null) {
   await env.DB.prepare(
-    "UPDATE upload_sessions SET pending_title = ?, pending_description = ?, selected_channels = '[]', updated_at = ? WHERE id = ?"
-  ).bind(title, description, now(), sessionId).run();
+    "UPDATE upload_sessions SET pending_title = ?, pending_description = ?, pending_description_en = ?, selected_channels = '[]', updated_at = ? WHERE id = ?"
+  ).bind(title, descriptionFa, descriptionEn, now(), sessionId).run();
 }
 
 async function getPendingArchiveMeta(env: Env, sessionId: number) {
   return env.DB.prepare(
-    "SELECT pending_title, pending_description, selected_channels FROM upload_sessions WHERE id = ? AND status = 'collecting'"
-  ).bind(sessionId).first<{ pending_title: string | null; pending_description: string | null; selected_channels: string | null }>();
+    "SELECT pending_title, pending_description, pending_description_en, selected_channels FROM upload_sessions WHERE id = ? AND status = 'collecting'"
+  ).bind(sessionId).first<{ pending_title: string | null; pending_description: string | null; pending_description_en: string | null; selected_channels: string | null }>();
 }
 
-async function proceedToChannelSelection(ctx: Context, env: Env, userId: number, lang: Lang, sessionId: number, title: string, descriptionInput: string) {
-  const description = descriptionInput === "-" || matchAnyLang(descriptionInput, "btn_skip") ? null : descriptionInput;
+function normalizeDescriptionInput(input: string): string | null {
+  return input === "-" || matchAnyLang(input, "btn_skip") ? null : input;
+}
+
+async function proceedToChannelSelection(ctx: Context, env: Env, userId: number, lang: Lang, sessionId: number, title: string, descriptionFa: string | null, descriptionEn: string | null) {
   const channels = await getAllChannels(env);
   if (channels.length === 0) {
     await ctx.reply(t(lang, "upload_need_channels_first"));
     await clearAdminState(env, userId);
     return;
   }
-  await persistPendingArchiveMeta(env, sessionId, title, description);
+  await persistPendingArchiveMeta(env, sessionId, title, descriptionFa, descriptionEn);
   await setAdminState(env, userId, "awaiting_channels", { sessionId });
   await ctx.reply(t(lang, "upload_ask_channels"), {
     reply_markup: buildChannelPickerKeyboard(lang, channels, [], sessionId),
@@ -1085,6 +1260,22 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
     return;
   }
 
+  // ----- first-time language picker (available to everyone) -----
+  if (ns === "pickstartlang") {
+    const [langStr, ...payloadParts] = rest;
+    const payload = payloadParts.join(":");
+    const newLang: Lang = langStr === "en" ? "en" : "fa";
+    await setUserLang(env, userId, newLang);
+    await ctx.answerCallbackQuery();
+    try {
+      await ctx.deleteMessage();
+    } catch {
+      /* ignore */
+    }
+    await performStart(ctx, env, userId, newLang, payload);
+    return;
+  }
+
   // Everything below is admin-only.
   if (!(await isAdmin(env, userId))) {
     await ctx.answerCallbackQuery({ text: t(lang, "not_admin") });
@@ -1094,6 +1285,9 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
   switch (ns) {
     case "chmgmt":
       await handleChannelMgmtCallback(ctx, env, lang, rest);
+      return;
+    case "adsmgmt":
+      await handleAdsMgmtCallback(ctx, env, userId, lang, rest);
       return;
     case "arcmgmt":
       await handleArchiveMgmtCallback(ctx, env, userId, lang, rest);
@@ -1284,26 +1478,44 @@ async function handleUploadCallback(ctx: Context, env: Env, userId: number, lang
     return;
   }
 
-  if (action === "skipdesc") {
+  if (action === "skipdescfa") {
     const state = await getAdminState(env, userId);
-    if (!state || state.state !== "awaiting_description") {
+    if (!state || state.state !== "awaiting_description_fa") {
       await ctx.answerCallbackQuery();
       return;
     }
     const title = state.context.title as string;
-    await proceedToChannelSelectionFromCallback(ctx, env, userId, lang, sessionId, title, null);
+    await setAdminState(env, userId, "awaiting_description_en", { sessionId, title, descriptionFa: null });
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(t(lang, "upload_ask_description_en"), {
+      reply_markup: new InlineKeyboard()
+        .text(t(lang, "btn_skip"), `up:skipdescen:${sessionId}`)
+        .text(t(lang, "btn_cancel"), `up:cancel:${sessionId}`),
+    });
+    return;
+  }
+
+  if (action === "skipdescen") {
+    const state = await getAdminState(env, userId);
+    if (!state || state.state !== "awaiting_description_en") {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    const title = state.context.title as string;
+    const descriptionFa = (state.context.descriptionFa as string | null) ?? null;
+    await proceedToChannelSelectionFromCallback(ctx, env, userId, lang, sessionId, title, descriptionFa, null);
     return;
   }
 }
 
-async function proceedToChannelSelectionFromCallback(ctx: Context, env: Env, userId: number, lang: Lang, sessionId: number, title: string, description: string | null) {
+async function proceedToChannelSelectionFromCallback(ctx: Context, env: Env, userId: number, lang: Lang, sessionId: number, title: string, descriptionFa: string | null, descriptionEn: string | null) {
   const channels = await getAllChannels(env);
   if (channels.length === 0) {
     await ctx.answerCallbackQuery({ text: t(lang, "upload_need_channels_first") });
     await clearAdminState(env, userId);
     return;
   }
-  await persistPendingArchiveMeta(env, sessionId, title, description);
+  await persistPendingArchiveMeta(env, sessionId, title, descriptionFa, descriptionEn);
   await setAdminState(env, userId, "awaiting_channels", { sessionId });
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(t(lang, "upload_ask_channels"), {
@@ -1349,9 +1561,10 @@ async function handleChannelPickerCallback(ctx: Context, env: Env, userId: numbe
       return;
     }
     const title = meta.pending_title;
-    const description = meta.pending_description ?? null;
+    const descriptionFa = meta.pending_description ?? null;
+    const descriptionEn = meta.pending_description_en ?? null;
     const fileCount = (await getSessionFiles(env, sessionId)).length;
-    const code = await finalizeArchive(env, sessionId, title, description, selected);
+    const code = await finalizeArchive(env, sessionId, title, descriptionFa, descriptionEn, selected);
     await clearAdminState(env, userId);
     await ctx.answerCallbackQuery({ text: t(lang, "upload_done").split("\n")[0] });
     const link = `https://t.me/${(await ctx.api.getMe()).username}?start=${code}`;
@@ -1382,7 +1595,7 @@ async function renderArchivesList(ctx: Context, env: Env, lang: Lang, page: numb
   const kb = new InlineKeyboard();
   for (const a of slice) {
     const mark = a.is_active ? "🟢" : "🔴";
-    kb.text(`${mark} ${a.title}`, `arcmgmt:view:${a.id}`).row();
+    kb.text(`${mark} ${a.title} — 👁 ${a.views ?? 0}`, `arcmgmt:view:${a.id}`).row();
   }
   if (totalPages > 1) {
     kb.text("«", `arcmgmt:list:${Math.max(0, p - 1)}`)
@@ -1403,9 +1616,11 @@ async function sendArchiveDetailWindow(ctx: Context, env: Env, lang: Lang, archi
   const files = await getArchiveFiles(env, archiveId);
   const channels = await getArchiveChannels(env, archiveId);
   const kb = new InlineKeyboard()
-    .text(t(lang, "btn_edit_title"), `arcmgmt:edittitle:${archiveId}`)
-    .text(t(lang, "btn_edit_desc"), `arcmgmt:editdesc:${archiveId}`).row()
+    .text(t(lang, "btn_edit_title"), `arcmgmt:edittitle:${archiveId}`).row()
+    .text(t(lang, "btn_edit_desc_fa"), `arcmgmt:editdescfa:${archiveId}`)
+    .text(t(lang, "btn_edit_desc_en"), `arcmgmt:editdescen:${archiveId}`).row()
     .text(t(lang, "btn_manage_files"), `arcmgmt:files:${archiveId}:0`).row()
+    .text(t(lang, "btn_viewers"), `arcmgmt:viewers:${archiveId}:0`).row()
     .text(t(lang, "btn_toggle_active"), `arcmgmt:toggle:${archiveId}`).row()
     .text(t(lang, "btn_delete_archive"), `arcmgmt:del:${archiveId}`).row()
     .text(t(lang, "btn_back"), "arcmgmt:list:0");
@@ -1414,6 +1629,7 @@ async function sendArchiveDetailWindow(ctx: Context, env: Env, lang: Lang, archi
     title: archive.title,
     status: archive.is_active ? t(lang, "archive_active") : t(lang, "archive_inactive"),
     description: archive.description ?? t(lang, "no_description"),
+    description_en: archive.description_en ?? t(lang, "no_description"),
     file_count: files.length,
     views: archive.views ?? 0,
     code: archive.code,
@@ -1450,11 +1666,21 @@ async function handleArchiveMgmtCallback(ctx: Context, env: Env, userId: number,
     return;
   }
 
-  if (action === "editdesc") {
+  if (action === "editdescfa") {
     const archiveId = parseInt(rest[1], 10);
-    await setAdminState(env, userId, "editing_archive_desc", { archiveId });
+    await setAdminState(env, userId, "editing_archive_desc_fa", { archiveId });
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(t(lang, "edit_desc_prompt"), {
+    await ctx.editMessageText(t(lang, "edit_desc_fa_prompt"), {
+      reply_markup: new InlineKeyboard().text(t(lang, "btn_cancel"), `arcmgmt:canceledit:${archiveId}`),
+    });
+    return;
+  }
+
+  if (action === "editdescen") {
+    const archiveId = parseInt(rest[1], 10);
+    await setAdminState(env, userId, "editing_archive_desc_en", { archiveId });
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(t(lang, "edit_desc_en_prompt"), {
       reply_markup: new InlineKeyboard().text(t(lang, "btn_cancel"), `arcmgmt:canceledit:${archiveId}`),
     });
     return;
@@ -1473,6 +1699,14 @@ async function handleArchiveMgmtCallback(ctx: Context, env: Env, userId: number,
     await setAdminState(env, userId, "editing_archive_files", { archiveId });
     await ctx.answerCallbackQuery();
     await renderFilesManageWindow(ctx, env, lang, archiveId, true);
+    return;
+  }
+
+  if (action === "viewers") {
+    const archiveId = parseInt(rest[1], 10);
+    const page = parseInt(rest[2] ?? "0", 10);
+    await ctx.answerCallbackQuery();
+    await renderViewersWindow(ctx, env, lang, archiveId, page, true);
     return;
   }
 
@@ -1537,9 +1771,11 @@ async function renderArchiveDetail(ctx: Context, env: Env, lang: Lang, archiveId
   const files = await getArchiveFiles(env, archiveId);
   const channels = await getArchiveChannels(env, archiveId);
   const kb = new InlineKeyboard()
-    .text(t(lang, "btn_edit_title"), `arcmgmt:edittitle:${archiveId}`)
-    .text(t(lang, "btn_edit_desc"), `arcmgmt:editdesc:${archiveId}`).row()
+    .text(t(lang, "btn_edit_title"), `arcmgmt:edittitle:${archiveId}`).row()
+    .text(t(lang, "btn_edit_desc_fa"), `arcmgmt:editdescfa:${archiveId}`)
+    .text(t(lang, "btn_edit_desc_en"), `arcmgmt:editdescen:${archiveId}`).row()
     .text(t(lang, "btn_manage_files"), `arcmgmt:files:${archiveId}`).row()
+    .text(t(lang, "btn_viewers"), `arcmgmt:viewers:${archiveId}:0`).row()
     .text(t(lang, "btn_toggle_active"), `arcmgmt:toggle:${archiveId}`).row()
     .text(t(lang, "btn_delete_archive"), `arcmgmt:del:${archiveId}`).row()
     .text(t(lang, "btn_back"), "arcmgmt:list:0");
@@ -1548,6 +1784,7 @@ async function renderArchiveDetail(ctx: Context, env: Env, lang: Lang, archiveId
     title: archive.title,
     status: archive.is_active ? t(lang, "archive_active") : t(lang, "archive_inactive"),
     description: archive.description ?? t(lang, "no_description"),
+    description_en: archive.description_en ?? t(lang, "no_description"),
     file_count: files.length,
     views: archive.views ?? 0,
     code: archive.code,
@@ -1571,6 +1808,47 @@ async function renderFilesManageWindow(ctx: Context, env: Env, lang: Lang, archi
   kb.text(t(lang, "btn_done_editing_files"), `arcmgmt:donefiles:${archiveId}`);
 
   const text = t(lang, "manage_files_title", { title: archive.title, count: files.length });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+// ---------- Viewer stats (per archive: who viewed it, how many times) ----------
+
+const VIEWERS_PAGE_SIZE = 15;
+
+async function renderViewersWindow(ctx: Context, env: Env, lang: Lang, archiveId: number, page: number, edit: boolean) {
+  const archive = await getArchiveById(env, archiveId);
+  if (!archive) return;
+
+  const total = await countArchiveViewers(env, archive.code);
+  const kb = new InlineKeyboard();
+
+  if (total === 0) {
+    kb.text(t(lang, "btn_back"), `arcmgmt:view:${archiveId}`);
+    const text = `${t(lang, "viewers_title", { title: archive.title, count: 0 })}\n\n${t(lang, "no_viewers_yet")}`;
+    if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+    else await ctx.reply(text, { reply_markup: kb });
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / VIEWERS_PAGE_SIZE));
+  const p = Math.min(Math.max(page, 0), totalPages - 1);
+  const viewers = await getArchiveViewers(env, archive.code, VIEWERS_PAGE_SIZE, p * VIEWERS_PAGE_SIZE);
+
+  const lines = viewers.map((v, i) => {
+    const name = v.username ? `@${v.username}` : (v.first_name ?? t(lang, "no_username"));
+    return `${p * VIEWERS_PAGE_SIZE + i + 1}. ${name} — ID: ${v.telegram_id} — ${v.view_count}x`;
+  });
+
+  if (totalPages > 1) {
+    kb.text("«", `arcmgmt:viewers:${archiveId}:${Math.max(0, p - 1)}`)
+      .text(`${p + 1}/${totalPages}`, `arcmgmt:viewers:${archiveId}:${p}`)
+      .text("»", `arcmgmt:viewers:${archiveId}:${Math.min(totalPages - 1, p + 1)}`)
+      .row();
+  }
+  kb.text(t(lang, "btn_back"), `arcmgmt:view:${archiveId}`);
+
+  const text = `${t(lang, "viewers_title", { title: archive.title, count: total })}\n\n${lines.join("\n")}`;
   if (edit) await ctx.editMessageText(text, { reply_markup: kb });
   else await ctx.reply(text, { reply_markup: kb });
 }
@@ -1748,8 +2026,156 @@ async function handleSettingsCallback(ctx: Context, env: Env, userId: number, la
 }
 
 // =========================================================================
+// Ads management (two fully separate fa/en windows)
+// =========================================================================
+
+async function sendAdsPanel(ctx: Context, env: Env, lang: Lang) {
+  const kb = new InlineKeyboard()
+    .text("🇮🇷 تبلیغ فارسی", "adsmgmt:view:fa").row()
+    .text("🇬🇧 English Ad", "adsmgmt:view:en").row()
+    .text(t(lang, "btn_close"), "nav:close");
+  await ctx.reply(t(lang, "ads_panel_title"), { reply_markup: kb });
+}
+
+function adLangName(targetLang: Lang): string {
+  return targetLang === "fa" ? "فارسی" : "English";
+}
+
+async function renderAdDetail(ctx: Context, env: Env, lang: Lang, targetLang: Lang, edit: boolean) {
+  const ad = await getAd(env, targetLang);
+  const hasPhoto = ad?.file_id ? t(lang, "has_photo_yes") : t(lang, "has_photo_no");
+  const caption = ad?.caption ? ad.caption.slice(0, 300) : t(lang, "no_description");
+  const kb = new InlineKeyboard()
+    .text(t(lang, "btn_edit_ad"), `adsmgmt:edit:${targetLang}`).row()
+    .text(t(lang, "btn_delete_ad"), `adsmgmt:del:${targetLang}`).row()
+    .text(t(lang, "btn_broadcast_ad"), `adsmgmt:bcast:${targetLang}`).row()
+    .text(t(lang, "btn_back"), "adsmgmt:backtopanel");
+
+  const text = t(lang, "ad_detail", { lang_name: adLangName(targetLang), has_photo: hasPhoto, caption });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function handleAdsMgmtCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
+  const action = rest[0];
+  const targetLang: Lang = rest[1] === "en" ? "en" : "fa";
+
+  if (action === "backtopanel") {
+    await clearAdminState(env, userId);
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text("🇮🇷 تبلیغ فارسی", "adsmgmt:view:fa").row()
+      .text("🇬🇧 English Ad", "adsmgmt:view:en").row()
+      .text(t(lang, "btn_close"), "nav:close");
+    await ctx.editMessageText(t(lang, "ads_panel_title"), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "view") {
+    await ctx.answerCallbackQuery();
+    await renderAdDetail(ctx, env, lang, targetLang, true);
+    return;
+  }
+
+  if (action === "edit") {
+    await setAdminState(env, userId, "editing_ad", { lang: targetLang });
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(t(lang, "edit_ad_prompt"), {
+      reply_markup: new InlineKeyboard().text(t(lang, "btn_cancel"), `adsmgmt:view:${targetLang}`),
+    });
+    return;
+  }
+
+  if (action === "del") {
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text(t(lang, "btn_yes_delete"), `adsmgmt:delok:${targetLang}`)
+      .text(t(lang, "btn_no"), `adsmgmt:view:${targetLang}`);
+    await ctx.editMessageText(t(lang, "ad_delete_confirm", { lang_name: adLangName(targetLang) }), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "delok") {
+    await clearAd(env, targetLang);
+    await ctx.answerCallbackQuery({ text: t(lang, "ad_deleted_ok") });
+    await renderAdDetail(ctx, env, lang, targetLang, true);
+    return;
+  }
+
+  if (action === "bcast") {
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text(t(lang, "btn_confirm"), `adsmgmt:bcastok:${targetLang}`)
+      .text(t(lang, "btn_cancel"), `adsmgmt:view:${targetLang}`);
+    await ctx.editMessageText(t(lang, "ad_broadcast_confirm", { lang_name: adLangName(targetLang) }), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "bcastok") {
+    await ctx.answerCallbackQuery();
+    try {
+      await ctx.deleteMessage();
+    } catch {
+      /* ignore */
+    }
+    await runAdBroadcast(ctx, env, lang, targetLang);
+    return;
+  }
+}
+
+async function runAdBroadcast(ctx: Context, env: Env, lang: Lang, targetLang: Lang) {
+  const ad = await getAd(env, targetLang);
+  if (!ad || (!ad.file_id && !ad.caption)) {
+    await ctx.reply(t(lang, "no_ad_set"));
+    return;
+  }
+  const ids = await getUserIdsByLang(env, targetLang);
+  const status = await ctx.reply(t(lang, "broadcast_sending", { count: ids.length }));
+
+  let ok = 0;
+  let fail = 0;
+  const BATCH = 20;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(async (id) => {
+        if (ad.file_id && ad.file_type) {
+          const method = SEND_METHOD[ad.file_type] ?? "sendPhoto";
+          // @ts-ignore - dynamic method dispatch on the Bot API
+          return ctx.api[method](id, ad.file_id, ad.caption ? { caption: ad.caption } : undefined);
+        }
+        return ctx.api.sendMessage(id, ad.caption ?? "");
+      })
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") ok++;
+      else fail++;
+    }
+  }
+
+  await ctx.api.editMessageText(ctx.chat!.id, status.message_id, t(lang, "broadcast_done", { ok, fail }));
+}
+
+// =========================================================================
 // Delivery / group gate (end users)
 // =========================================================================
+
+async function performStart(ctx: Context, env: Env, userId: number, lang: Lang, payload: string) {
+  await logEvent(env, "start", userId, payload || undefined);
+
+  if (payload) {
+    await deliverArchive(ctx, env, userId, payload, lang);
+    return;
+  }
+
+  await sendAdIfConfigured(ctx, env, lang);
+  const admin = await isAdmin(env, userId);
+  if (admin) {
+    await ctx.reply(t(lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(lang) });
+  } else {
+    await ctx.reply(t(lang, "welcome_user"));
+  }
+}
 
 async function deliverArchive(ctx: Context, env: Env, userId: number, code: string, lang: Lang) {
   const archive = await getArchiveByCode(env, code);
@@ -1777,6 +2203,52 @@ async function deliverArchive(ctx: Context, env: Env, userId: number, code: stri
   await sendArchiveFiles(ctx, env, userId, archive);
 }
 
+const VISUAL_GROUP_TYPES = new Set(["photo", "video"]);
+const FILE_GROUP_TYPES = new Set(["document", "audio"]);
+
+function mediaGroupBucket(fileType: string): "visual" | "filey" | "single" {
+  if (VISUAL_GROUP_TYPES.has(fileType)) return "visual";
+  if (FILE_GROUP_TYPES.has(fileType)) return "filey";
+  return "single"; // voice, animation — not supported in sendMediaGroup
+}
+
+/** Sends a run of same-bucket files as one Telegram album (sendMediaGroup)
+ *  when there are 2+ of them, preserving the exact upload order; falls
+ *  back to individual sends for a single file or if the group call fails. */
+async function flushMediaBatch(ctx: Context, env: Env, userId: number, chatId: number, archive: ArchiveRow, batch: FileRow[]) {
+  if (batch.length === 0) return;
+
+  if (batch.length === 1) {
+    const sent = await sendStoredFile(ctx, chatId, batch[0]);
+    if (sent && "message_id" in sent) {
+      await trackSentMessage(env, userId, chatId, sent.message_id, archive.id, archive.delete_after_seconds);
+    }
+    return;
+  }
+
+  const media = batch.map((f) => ({
+    type: f.file_type,
+    media: f.file_id,
+    caption: f.caption ?? undefined,
+  }));
+
+  try {
+    // @ts-ignore - grammy's InputMedia union is stricter than our dynamic file_type
+    const sentMessages = await ctx.api.sendMediaGroup(chatId, media);
+    for (const sm of sentMessages) {
+      await trackSentMessage(env, userId, chatId, sm.message_id, archive.id, archive.delete_after_seconds);
+    }
+  } catch {
+    // fallback: same order, sent one by one
+    for (const f of batch) {
+      const sent = await sendStoredFile(ctx, chatId, f);
+      if (sent && "message_id" in sent) {
+        await trackSentMessage(env, userId, chatId, sent.message_id, archive.id, archive.delete_after_seconds);
+      }
+    }
+  }
+}
+
 async function sendArchiveFiles(ctx: Context, env: Env, userId: number, archive: ArchiveRow) {
   const lang = await getUserLang(env, userId);
   const files = await getArchiveFiles(env, archive.id);
@@ -1787,17 +2259,46 @@ async function sendArchiveFiles(ctx: Context, env: Env, userId: number, archive:
 
   const chatId = ctx.chat!.id;
 
+  // 1) auto-delete warning — stays in chat, never auto-deleted itself
   if (archive.delete_after_seconds && archive.delete_after_seconds > 0) {
-    const notice = await ctx.reply(t(lang, "auto_delete_notice", { seconds: archive.delete_after_seconds }));
-    await trackSentMessage(env, userId, chatId, notice.message_id, archive.id, archive.delete_after_seconds);
+    await ctx.reply(t(lang, "auto_delete_notice", { seconds: archive.delete_after_seconds }));
   }
 
+  // 2) the files themselves, in exact upload order, grouped into albums
+  //    where Telegram allows it (photo+video together, document+audio
+  //    together); only these tracked messages get auto-deleted
+  let batch: FileRow[] = [];
+  let batchBucket: "visual" | "filey" | null = null;
   for (const f of files) {
-    const sent = await sendStoredFile(ctx, chatId, f);
-    if (sent && "message_id" in sent) {
-      await trackSentMessage(env, userId, chatId, sent.message_id, archive.id, archive.delete_after_seconds);
+    const bucket = mediaGroupBucket(f.file_type);
+    if (bucket === "single") {
+      await flushMediaBatch(ctx, env, userId, chatId, archive, batch);
+      batch = [];
+      batchBucket = null;
+      const sent = await sendStoredFile(ctx, chatId, f);
+      if (sent && "message_id" in sent) {
+        await trackSentMessage(env, userId, chatId, sent.message_id, archive.id, archive.delete_after_seconds);
+      }
+      continue;
     }
+    if (batchBucket !== null && (batchBucket !== bucket || batch.length >= 10)) {
+      await flushMediaBatch(ctx, env, userId, chatId, archive, batch);
+      batch = [];
+    }
+    batchBucket = bucket;
+    batch.push(f);
   }
+  await flushMediaBatch(ctx, env, userId, chatId, archive, batch);
+
+  // 3) the archive description, in the user's language — stays in chat
+  const description = lang === "en" ? archive.description_en : archive.description;
+  if (description) {
+    await ctx.reply(description);
+  }
+
+  // 4) the promo ad, in the user's language, on every delivery — stays in chat
+  await sendAdIfConfigured(ctx, env, lang);
+
   await incrementArchiveViews(env, archive.id);
   await logEvent(env, "archive_delivered", userId, archive.code);
 }
