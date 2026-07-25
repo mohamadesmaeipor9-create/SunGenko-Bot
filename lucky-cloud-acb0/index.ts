@@ -652,14 +652,13 @@ async function cancelSession(env: Env, sessionId: number) {
 }
 
 async function addFileToSession(env: Env, sessionId: number, f: Omit<FileRow, "order_index">) {
-  const countRow = await env.DB.prepare("SELECT COUNT(*) as c FROM upload_session_files WHERE session_id = ?")
-    .bind(sessionId).first<{ c: number }>();
-  const position = (countRow?.c ?? 0) + 1;
-  await env.DB.prepare(
+  const res = await env.DB.prepare(
     `INSERT INTO upload_session_files (session_id, file_id, file_unique_id, file_type, file_name, caption, order_index, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(sessionId, f.file_id, f.file_unique_id, f.file_type, f.file_name, f.caption, position, now()).run();
-  return position;
+     VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(order_index), 0) + 1 FROM upload_session_files WHERE session_id = ?), ?)`
+  ).bind(sessionId, f.file_id, f.file_unique_id, f.file_type, f.file_name, f.caption, sessionId, now()).run();
+  const row = await env.DB.prepare("SELECT order_index FROM upload_session_files WHERE id = ?")
+    .bind(res.meta.last_row_id).first<{ order_index: number }>();
+  return row?.order_index ?? 1;
 }
 
 async function getSessionFiles(env: Env, sessionId: number): Promise<FileRow[]> {
@@ -1131,13 +1130,13 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
     const file = ctx.message ? detectFile(ctx.message) : null;
     if (file) {
       const archiveId = state.context.archiveId as number;
-      const countRow = await env.DB.prepare("SELECT COUNT(*) as c FROM files WHERE archive_id = ?").bind(archiveId).first<{ c: number }>();
-      const position = (countRow?.c ?? 0) + 1;
-      await env.DB.prepare(
+      const res = await env.DB.prepare(
         `INSERT INTO files (archive_id, file_id, file_unique_id, file_type, file_name, caption, order_index, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(archiveId, file.file_id, file.file_unique_id, file.file_type, file.file_name, file.caption, position, now()).run();
-      await ctx.reply(t(lang, "file_added_to_archive", { count: position }));
+         VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(order_index), 0) + 1 FROM files WHERE archive_id = ?), ?)`
+      ).bind(archiveId, file.file_id, file.file_unique_id, file.file_type, file.file_name, file.caption, archiveId, now()).run();
+      const row = await env.DB.prepare("SELECT order_index FROM files WHERE id = ?")
+        .bind(res.meta.last_row_id).first<{ order_index: number }>();
+      await ctx.reply(t(lang, "file_added_to_archive", { count: row?.order_index ?? 1 }));
       return true;
     }
   }
