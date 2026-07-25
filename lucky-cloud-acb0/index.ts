@@ -472,12 +472,12 @@ async function adminCount(env: Env): Promise<number> {
   return row?.c ?? 0;
 }
 
-async function upsertUser(env: Env, telegramId: number, username?: string | null, firstName?: string | null) {
+async function upsertUser(env: Env, telegramId: number, username?: string | null, firstName?: string | null, lastName?: string | null) {
   const t0 = now();
   await env.DB.prepare(
-    `INSERT INTO users (telegram_id, first_seen_at, last_seen_at, username, first_name) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(telegram_id) DO UPDATE SET last_seen_at = excluded.last_seen_at, username = excluded.username, first_name = excluded.first_name`
-  ).bind(String(telegramId), t0, t0, username ?? null, firstName ?? null).run();
+    `INSERT INTO users (telegram_id, first_seen_at, last_seen_at, username, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(telegram_id) DO UPDATE SET last_seen_at = excluded.last_seen_at, username = excluded.username, first_name = excluded.first_name, last_name = excluded.last_name`
+  ).bind(String(telegramId), t0, t0, username ?? null, firstName ?? null, lastName ?? null).run();
 }
 
 async function getUserLang(env: Env, telegramId: number): Promise<Lang> {
@@ -756,14 +756,14 @@ async function countEventsTotal(env: Env, type: string): Promise<number> {
 
 async function getArchiveViewers(env: Env, code: string, limit: number, offset: number) {
   const res = await env.DB.prepare(
-    `SELECT e.telegram_id as telegram_id, COUNT(*) as view_count, u.username as username, u.first_name as first_name
+    `SELECT e.telegram_id as telegram_id, COUNT(*) as view_count, u.username as username, u.first_name as first_name, u.last_name as last_name
      FROM events e
      LEFT JOIN users u ON u.telegram_id = e.telegram_id
      WHERE e.type = 'archive_delivered' AND e.ref_id = ?
      GROUP BY e.telegram_id
      ORDER BY view_count DESC
      LIMIT ? OFFSET ?`
-  ).bind(code, limit, offset).all<{ telegram_id: string; view_count: number; username: string | null; first_name: string | null }>();
+  ).bind(code, limit, offset).all<{ telegram_id: string; view_count: number; username: string | null; first_name: string | null; last_name: string | null }>();
   return res.results ?? [];
 }
 
@@ -850,7 +850,7 @@ function buildBot(env: Env): Bot {
   bot.command("start", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
-    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name);
+    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name, ctx.from?.last_name);
     const payload = ctx.match?.toString().trim() ?? "";
     const rawLang = await getRawUserLang(env, userId);
 
@@ -907,7 +907,7 @@ function buildBot(env: Env): Bot {
 
     if (chatType !== "private") return;
 
-    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name);
+    await upsertUser(env, userId, ctx.from?.username, ctx.from?.first_name, ctx.from?.last_name);
     const lang = await getUserLang(env, userId);
     const admin = await isAdmin(env, userId);
 
@@ -1836,7 +1836,9 @@ async function renderViewersWindow(ctx: Context, env: Env, lang: Lang, archiveId
   const viewers = await getArchiveViewers(env, archive.code, VIEWERS_PAGE_SIZE, p * VIEWERS_PAGE_SIZE);
 
   const lines = viewers.map((v, i) => {
-    const name = v.username ? `@${v.username}` : (v.first_name ?? t(lang, "no_username"));
+    const fullName = [v.first_name, v.last_name].filter(Boolean).join(" ");
+    const usernamePart = v.username ? `@${v.username}` : null;
+    const name = [usernamePart, fullName].filter(Boolean).join(" — ") || t(lang, "no_username");
     return `${p * VIEWERS_PAGE_SIZE + i + 1}. ${name} — ID: ${v.telegram_id} — ${v.view_count}x`;
   });
 
