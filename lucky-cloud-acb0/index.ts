@@ -75,6 +75,31 @@ const T = {
     btn_info: "🔍 اطلاعات ربات",
     btn_broadcast: "📢 پیام همگانی",
     btn_settings: "⚙️ تنظیمات",
+    btn_admin_mgmt: "🛡 مدیریت ادمین‌ها",
+    admin_mgmt_panel_title: "🛡 مدیریت ادمین‌ها\n\nیکی از گزینه‌ها را انتخاب کنید:",
+    btn_add_admin: "➕ افزودن ادمین",
+    btn_admin_list: "📋 لیست ادمین‌ها",
+    add_admin_prompt: "آیدی عددی تلگرام کاربر مورد نظر را ارسال کنید:\n(کاربر باید قبلاً حداقل یک‌بار با ربات /start زده باشد)",
+    add_admin_invalid: "آیدی نامعتبر است. باید یک عدد باشد.",
+    add_admin_already: "این کاربر از قبل ادمین است.",
+    add_admin_ok: "✅ ادمین با آیدی {id} اضافه شد. اکنون می‌توانید دسترسی‌هایش را تنظیم کنید.",
+    no_admins_yet: "به‌جز شما ادمین دیگری وجود ندارد.",
+    admins_list_title: "📋 ادمین‌ها ({count} نفر):",
+    admin_detail_title: "🛡 ادمین: {id}\nنوع: {role}",
+    role_super: "مدیر کل (دسترسی کامل به همه‌چیز، از جمله مدیریت ادمین‌ها)",
+    role_regular: "ادمین محدود — دسترسی‌ها را از دکمه‌های زیر تنظیم کنید:",
+    perm_upload: "📤 آپلود آرشیو",
+    perm_channels: "📁 مدیریت کانال‌ها",
+    perm_archives_manage: "🗂 ویرایش/حذف آرشیوها",
+    perm_ads: "📢 مدیریت تبلیغات",
+    perm_broadcast: "📢 پیام همگانی",
+    perm_settings: "⚙️ تنظیم حذف خودکار",
+    btn_remove_admin: "🗑 حذف این ادمین",
+    remove_admin_confirm: "آیا از حذف ادمین {id} مطمئن هستید؟",
+    remove_admin_ok: "🗑 ادمین حذف شد.",
+    cannot_remove_super: "نمی‌توانید یک مدیر کل را از این پنل حذف کنید.",
+    no_permission: "🚫 شما به این بخش دسترسی ندارید. از مدیر کل بخواهید دسترسی لازم را به شما بدهد.",
+    super_only_notice: "این بخش فقط برای مدیر کل قابل دسترسی است.",
 
     // generic
     btn_back: "🔙 بازگشت",
@@ -224,6 +249,31 @@ const T = {
     btn_info: "🔍 Bot Info",
     btn_broadcast: "📢 Broadcast",
     btn_settings: "⚙️ Settings",
+    btn_admin_mgmt: "🛡 Admin Management",
+    admin_mgmt_panel_title: "🛡 Admin Management\n\nChoose an option:",
+    btn_add_admin: "➕ Add Admin",
+    btn_admin_list: "📋 Admin List",
+    add_admin_prompt: "Send the numeric Telegram ID of the user:\n(the user must have pressed /start at least once before)",
+    add_admin_invalid: "Invalid ID. It must be a number.",
+    add_admin_already: "This user is already an admin.",
+    add_admin_ok: "✅ Admin with ID {id} added. You can now configure their permissions.",
+    no_admins_yet: "There are no other admins besides you.",
+    admins_list_title: "📋 Admins ({count}):",
+    admin_detail_title: "🛡 Admin: {id}\nRole: {role}",
+    role_super: "Super-admin (full access, including admin management)",
+    role_regular: "Limited admin — configure access with the buttons below:",
+    perm_upload: "📤 Upload Archive",
+    perm_channels: "📁 Channel Management",
+    perm_archives_manage: "🗂 Edit/Delete Archives",
+    perm_ads: "📢 Ads Management",
+    perm_broadcast: "📢 Broadcast",
+    perm_settings: "⚙️ Auto-delete Settings",
+    btn_remove_admin: "🗑 Remove This Admin",
+    remove_admin_confirm: "Are you sure you want to remove admin {id}?",
+    remove_admin_ok: "🗑 Admin removed.",
+    cannot_remove_super: "You can't remove a super-admin from this panel.",
+    no_permission: "🚫 You don't have access to this section. Ask the super-admin to grant it.",
+    super_only_notice: "This section is only accessible to the super-admin.",
 
     btn_back: "🔙 Back",
     btn_close: "✖️ Close",
@@ -472,6 +522,63 @@ async function adminCount(env: Env): Promise<number> {
   return row?.c ?? 0;
 }
 
+// ---------- admin roles & permissions ----------
+
+type PermissionKey = "upload" | "channels" | "archives_manage" | "ads" | "broadcast" | "settings";
+
+const DEFAULT_ADMIN_PERMISSIONS: Record<PermissionKey, boolean> = {
+  upload: true,
+  channels: true,
+  archives_manage: false,
+  ads: false,
+  broadcast: true,
+  settings: false,
+};
+
+type AdminInfo = { isSuper: boolean; permissions: Record<PermissionKey, boolean> };
+
+async function getAdminInfo(env: Env, telegramId: number): Promise<AdminInfo | null> {
+  const row = await env.DB.prepare("SELECT is_super, permissions FROM admins WHERE telegram_id = ?")
+    .bind(String(telegramId)).first<{ is_super: number; permissions: string | null }>();
+  if (!row) return null;
+  const stored = row.permissions ? JSON.parse(row.permissions) : {};
+  return { isSuper: !!row.is_super, permissions: { ...DEFAULT_ADMIN_PERMISSIONS, ...stored } };
+}
+
+/** True if this admin can use a given panel section — always true for a
+ *  super-admin, otherwise depends on their configured permissions. */
+async function hasPermission(env: Env, telegramId: number, key: PermissionKey): Promise<boolean> {
+  const info = await getAdminInfo(env, telegramId);
+  if (!info) return false;
+  if (info.isSuper) return true;
+  return !!info.permissions[key];
+}
+
+async function addAdmin(env: Env, telegramId: string) {
+  await env.DB.prepare(
+    `INSERT INTO admins (telegram_id, created_at, is_super, permissions) VALUES (?, ?, 0, ?)
+     ON CONFLICT(telegram_id) DO NOTHING`
+  ).bind(telegramId, now(), JSON.stringify(DEFAULT_ADMIN_PERMISSIONS)).run();
+}
+
+async function removeAdmin(env: Env, telegramId: string) {
+  await env.DB.prepare("DELETE FROM admins WHERE telegram_id = ?").bind(telegramId).run();
+}
+
+async function listAdmins(env: Env): Promise<{ telegram_id: string; is_super: number }[]> {
+  const res = await env.DB.prepare("SELECT telegram_id, is_super FROM admins ORDER BY is_super DESC, id ASC")
+    .all<{ telegram_id: string; is_super: number }>();
+  return res.results ?? [];
+}
+
+async function togglePermission(env: Env, telegramId: string, key: PermissionKey) {
+  const info = await getAdminInfo(env, parseInt(telegramId, 10));
+  if (!info || info.isSuper) return;
+  const updated = { ...info.permissions, [key]: !info.permissions[key] };
+  await env.DB.prepare("UPDATE admins SET permissions = ? WHERE telegram_id = ?")
+    .bind(JSON.stringify(updated), telegramId).run();
+}
+
 async function upsertUser(env: Env, telegramId: number, username?: string | null, firstName?: string | null, lastName?: string | null) {
   const t0 = now();
   await env.DB.prepare(
@@ -501,19 +608,19 @@ async function setUserLang(env: Env, telegramId: number, lang: Lang) {
 // ---------- ads (per-language promo photo + caption, edited outside the upload flow) ----------
 
 async function getAd(env: Env, lang: Lang) {
-  return env.DB.prepare("SELECT file_id, file_type, caption FROM ads WHERE lang = ?")
-    .bind(lang).first<{ file_id: string | null; file_type: string | null; caption: string | null }>();
+  return env.DB.prepare("SELECT file_id, file_type, caption, entities FROM ads WHERE lang = ?")
+    .bind(lang).first<{ file_id: string | null; file_type: string | null; caption: string | null; entities: string | null }>();
 }
 
-async function setAd(env: Env, lang: Lang, fileId: string | null, fileType: string | null, caption: string | null) {
+async function setAd(env: Env, lang: Lang, fileId: string | null, fileType: string | null, caption: string | null, entities: unknown[] | null) {
   await env.DB.prepare(
-    `INSERT INTO ads (lang, file_id, file_type, caption, updated_at) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(lang) DO UPDATE SET file_id = excluded.file_id, file_type = excluded.file_type, caption = excluded.caption, updated_at = excluded.updated_at`
-  ).bind(lang, fileId, fileType, caption, now()).run();
+    `INSERT INTO ads (lang, file_id, file_type, caption, entities, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(lang) DO UPDATE SET file_id = excluded.file_id, file_type = excluded.file_type, caption = excluded.caption, entities = excluded.entities, updated_at = excluded.updated_at`
+  ).bind(lang, fileId, fileType, caption, entities && entities.length > 0 ? JSON.stringify(entities) : null, now()).run();
 }
 
 async function clearAd(env: Env, lang: Lang) {
-  await setAd(env, lang, null, null, null);
+  await setAd(env, lang, null, null, null, null);
 }
 
 async function getUserIdsByLang(env: Env, lang: Lang): Promise<string[]> {
@@ -529,13 +636,15 @@ async function getUserIdsByLang(env: Env, lang: Lang): Promise<string[]> {
 async function sendAdIfConfigured(ctx: Context, env: Env, lang: Lang) {
   const ad = await getAd(env, lang);
   if (!ad || (!ad.file_id && !ad.caption)) return;
+  const entities = ad.entities ? JSON.parse(ad.entities) : undefined;
   try {
     if (ad.file_id && ad.file_type) {
       const method = SEND_METHOD[ad.file_type] ?? "sendPhoto";
+      const opts = ad.caption ? { caption: ad.caption, caption_entities: entities } : undefined;
       // @ts-ignore - dynamic method dispatch on the Bot API
-      await ctx.api[method](ctx.chat!.id, ad.file_id, ad.caption ? { caption: ad.caption } : undefined);
+      await ctx.api[method](ctx.chat!.id, ad.file_id, opts);
     } else if (ad.caption) {
-      await ctx.reply(ad.caption);
+      await ctx.reply(ad.caption, { entities });
     }
   } catch {
     /* never let a broken ad block the rest of the flow */
@@ -823,15 +932,27 @@ async function setGroupPrompt(env: Env, chatId: number, messageId: number) {
 // Keyboards
 // =========================================================================
 
-function mainReplyKeyboard(lang: Lang): Keyboard {
-  return new Keyboard()
-    .text(t(lang, "btn_upload")).row()
-    .text(t(lang, "btn_channels")).text(t(lang, "btn_archives")).row()
-    .text(t(lang, "btn_stats")).text(t(lang, "btn_info")).row()
-    .text(t(lang, "btn_broadcast")).row()
-    .text(t(lang, "btn_ads")).row()
-    .text(t(lang, "btn_settings")).row()
-    .resized();
+function mainReplyKeyboard(lang: Lang, info: AdminInfo): Keyboard {
+  const kb = new Keyboard();
+  const perms = info.permissions;
+
+  if (info.isSuper || perms.upload) kb.text(t(lang, "btn_upload")).row();
+
+  const row2: string[] = [];
+  if (info.isSuper || perms.channels) row2.push(t(lang, "btn_channels"));
+  row2.push(t(lang, "btn_archives")); // list/view always allowed; edit/delete gated inside
+  if (row2.length === 2) kb.text(row2[0]).text(row2[1]).row();
+  else kb.text(row2[0]).row();
+
+  kb.text(t(lang, "btn_stats")).text(t(lang, "btn_info")).row();
+
+  if (info.isSuper || perms.broadcast) kb.text(t(lang, "btn_broadcast")).row();
+  if (info.isSuper || perms.ads) kb.text(t(lang, "btn_ads")).row();
+
+  kb.text(t(lang, "btn_settings")).row();
+  if (info.isSuper) kb.text(t(lang, "btn_admin_mgmt")).row();
+
+  return kb.resized();
 }
 
 function matchAnyLang(text: string, key: TKey): boolean {
@@ -956,14 +1077,25 @@ function buildBot(env: Env): Bot {
 
 async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: Lang): Promise<boolean> {
   const text = ctx.message?.text?.trim();
+  const adminInfo = await getAdminInfo(env, userId);
+  if (!adminInfo) return false;
+  const can = (key: PermissionKey) => adminInfo.isSuper || adminInfo.permissions[key];
 
   // ---- top-level reply-keyboard buttons ----
   if (text) {
     if (matchAnyLang(text, "btn_upload")) {
+      if (!can("upload")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
       await startUploadFlow(ctx, env, userId, lang);
       return true;
     }
     if (matchAnyLang(text, "btn_channels")) {
+      if (!can("channels")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
       await sendChannelsPanel(ctx, env, lang);
       return true;
     }
@@ -980,6 +1112,10 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       return true;
     }
     if (matchAnyLang(text, "btn_broadcast")) {
+      if (!can("broadcast")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
       await setAdminState(env, userId, "awaiting_broadcast", {});
       await ctx.reply(t(lang, "broadcast_prompt"), {
         reply_markup: new InlineKeyboard().text(t(lang, "btn_cancel"), "bcast:cancel"),
@@ -991,7 +1127,19 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       return true;
     }
     if (matchAnyLang(text, "btn_ads")) {
+      if (!can("ads")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
       await sendAdsPanel(ctx, env, lang);
+      return true;
+    }
+    if (matchAnyLang(text, "btn_admin_mgmt")) {
+      if (!adminInfo.isSuper) {
+        await ctx.reply(t(lang, "super_only_notice"));
+        return true;
+      }
+      await sendAdminMgmtPanel(ctx, env, lang);
       return true;
     }
   }
@@ -1002,13 +1150,15 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
     const targetLang = (adState.context.lang as Lang) ?? "fa";
     const file = ctx.message ? detectFile(ctx.message) : null;
     if (file && file.file_type === "photo") {
-      await setAd(env, targetLang, file.file_id, "photo", file.caption ?? null);
+      const entities = (ctx.message as any)?.caption_entities ?? [];
+      await setAd(env, targetLang, file.file_id, "photo", file.caption ?? null, entities);
       await clearAdminState(env, userId);
       await ctx.reply(t(lang, "ad_updated_ok"));
       return true;
     }
     if (text) {
-      await setAd(env, targetLang, null, null, text);
+      const entities = (ctx.message as any)?.entities ?? [];
+      await setAd(env, targetLang, null, null, text, entities);
       await clearAdminState(env, userId);
       await ctx.reply(t(lang, "ad_updated_ok"));
       return true;
@@ -1120,6 +1270,28 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
         await setSetting(env, "auto_delete_seconds", String(seconds));
         await clearAdminState(env, userId);
         await ctx.reply(t(lang, "autodelete_set_ok", { seconds }));
+        return true;
+      }
+      case "awaiting_admin_id": {
+        if (!adminInfo.isSuper) {
+          await clearAdminState(env, userId);
+          return true;
+        }
+        const newId = text.trim();
+        if (!/^\d+$/.test(newId)) {
+          await ctx.reply(t(lang, "add_admin_invalid"));
+          return true;
+        }
+        const existing = await isAdmin(env, parseInt(newId, 10));
+        if (existing) {
+          await ctx.reply(t(lang, "add_admin_already"));
+          await clearAdminState(env, userId);
+          return true;
+        }
+        await addAdmin(env, newId);
+        await clearAdminState(env, userId);
+        await ctx.reply(t(lang, "add_admin_ok", { id: newId }));
+        await renderAdminDetail(ctx, env, lang, newId, false);
         return true;
       }
     }
@@ -1276,26 +1448,51 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
   }
 
   // Everything below is admin-only.
-  if (!(await isAdmin(env, userId))) {
+  const adminInfo = await getAdminInfo(env, userId);
+  if (!adminInfo) {
     await ctx.answerCallbackQuery({ text: t(lang, "not_admin") });
     return;
   }
+  const can = (key: PermissionKey) => adminInfo.isSuper || adminInfo.permissions[key];
 
   switch (ns) {
     case "chmgmt":
+      if (!can("channels")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
       await handleChannelMgmtCallback(ctx, env, lang, rest);
       return;
     case "adsmgmt":
+      if (!can("ads")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
       await handleAdsMgmtCallback(ctx, env, userId, lang, rest);
       return;
+    case "adminmgmt":
+      if (!adminInfo.isSuper) {
+        await ctx.answerCallbackQuery({ text: t(lang, "super_only_notice") });
+        return;
+      }
+      await handleAdminMgmtCallback(ctx, env, userId, lang, rest);
+      return;
     case "arcmgmt":
-      await handleArchiveMgmtCallback(ctx, env, userId, lang, rest);
+      await handleArchiveMgmtCallback(ctx, env, userId, lang, rest, adminInfo);
       return;
     case "up":
+      if (!can("upload")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
       await handleUploadCallback(ctx, env, userId, lang, rest);
       return;
     case "chsel":
     case "chconfirm":
+      if (!can("upload")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
       await handleChannelPickerCallback(ctx, env, userId, lang, ns, rest);
       return;
     case "bcast":
@@ -1306,7 +1503,7 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
       }
       return;
     case "settings":
-      await handleSettingsCallback(ctx, env, userId, lang, rest);
+      await handleSettingsCallback(ctx, env, userId, lang, rest, adminInfo);
       return;
     case "stats":
       if (rest[0] === "refresh") {
@@ -1638,8 +1835,14 @@ async function sendArchiveDetailWindow(ctx: Context, env: Env, lang: Lang, archi
   await ctx.reply(text, { reply_markup: kb });
 }
 
-async function handleArchiveMgmtCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
+async function handleArchiveMgmtCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[], adminInfo: AdminInfo) {
   const action = rest[0];
+  const readOnlyActions = new Set(["list", "view", "viewers"]);
+  const canManage = adminInfo.isSuper || adminInfo.permissions.archives_manage;
+  if (!readOnlyActions.has(action) && !canManage) {
+    await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+    return;
+  }
 
   if (action === "list") {
     const page = parseInt(rest[1] ?? "0", 10);
@@ -1960,8 +2163,13 @@ async function sendSettingsWindow(ctx: Context, env: Env, lang: Lang) {
   await ctx.reply(t(lang, "settings_title"), { reply_markup: kb });
 }
 
-async function handleSettingsCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
+async function handleSettingsCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[], adminInfo: AdminInfo) {
   const action = rest[0];
+  const autodelActions = new Set(["autodel", "setautodel", "customautodel"]);
+  if (autodelActions.has(action) && !(adminInfo.isSuper || adminInfo.permissions.settings)) {
+    await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+    return;
+  }
 
   if (action === "lang") {
     const kb = new InlineKeyboard()
@@ -1979,7 +2187,10 @@ async function handleSettingsCallback(ctx: Context, env: Env, userId: number, la
     await ctx.answerCallbackQuery({ text: t(newLang as Lang, "language_set_ok") });
     await ctx.editMessageText(t(newLang as Lang, "language_set_ok"));
     try {
-      await ctx.reply(t(newLang as Lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(newLang as Lang) });
+      const info = await getAdminInfo(env, userId);
+      if (info) {
+        await ctx.reply(t(newLang as Lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(newLang as Lang, info) });
+      }
     } catch {
       /* ignore */
     }
@@ -2022,6 +2233,137 @@ async function handleSettingsCallback(ctx: Context, env: Env, userId: number, la
       .text(t(lang, "btn_autodelete"), "settings:autodel").row()
       .text(t(lang, "btn_close"), "nav:close");
     await ctx.editMessageText(t(lang, "settings_title"), { reply_markup: kb });
+    return;
+  }
+}
+
+// =========================================================================
+// Admin management (super-admin only): add/remove admins, grant/revoke
+// per-section permissions to limited admins.
+// =========================================================================
+
+async function sendAdminMgmtPanel(ctx: Context, env: Env, lang: Lang) {
+  const kb = new InlineKeyboard()
+    .text(t(lang, "btn_add_admin"), "adminmgmt:addprompt").row()
+    .text(t(lang, "btn_admin_list"), "adminmgmt:list:0").row()
+    .text(t(lang, "btn_close"), "nav:close");
+  await ctx.reply(t(lang, "admin_mgmt_panel_title"), { reply_markup: kb });
+}
+
+const PERMISSION_KEYS: PermissionKey[] = ["upload", "channels", "archives_manage", "ads", "broadcast", "settings"];
+
+async function renderAdminDetail(ctx: Context, env: Env, lang: Lang, targetId: string, edit: boolean) {
+  const info = await getAdminInfo(env, parseInt(targetId, 10));
+  if (!info) return;
+
+  const kb = new InlineKeyboard();
+  if (!info.isSuper) {
+    for (const key of PERMISSION_KEYS) {
+      const mark = info.permissions[key] ? "✅" : "❌";
+      kb.text(`${mark} ${t(lang, `perm_${key}` as TKey)}`, `adminmgmt:toggle:${key}:${targetId}`).row();
+    }
+    kb.text(t(lang, "btn_remove_admin"), `adminmgmt:del:${targetId}`).row();
+  }
+  kb.text(t(lang, "btn_back"), "adminmgmt:list:0");
+
+  const text = t(lang, "admin_detail_title", {
+    id: targetId,
+    role: info.isSuper ? t(lang, "role_super") : t(lang, "role_regular"),
+  });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function renderAdminList(ctx: Context, env: Env, lang: Lang, edit: boolean) {
+  const admins = await listAdmins(env);
+  const kb = new InlineKeyboard();
+  for (const a of admins) {
+    const mark = a.is_super ? "👑" : "🛡";
+    kb.text(`${mark} ${a.telegram_id}`, `adminmgmt:view:${a.telegram_id}`).row();
+  }
+  kb.text(t(lang, "btn_back"), "adminmgmt:backtopanel");
+
+  const text = admins.length === 0
+    ? t(lang, "no_admins_yet")
+    : t(lang, "admins_list_title", { count: admins.length });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function handleAdminMgmtCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
+  const action = rest[0];
+
+  if (action === "backtopanel") {
+    await clearAdminState(env, userId);
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text(t(lang, "btn_add_admin"), "adminmgmt:addprompt").row()
+      .text(t(lang, "btn_admin_list"), "adminmgmt:list:0").row()
+      .text(t(lang, "btn_close"), "nav:close");
+    await ctx.editMessageText(t(lang, "admin_mgmt_panel_title"), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "addprompt") {
+    await setAdminState(env, userId, "awaiting_admin_id", {});
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(t(lang, "add_admin_prompt"), {
+      reply_markup: new InlineKeyboard().text(t(lang, "btn_cancel"), "adminmgmt:backtopanel"),
+    });
+    return;
+  }
+
+  if (action === "list") {
+    await ctx.answerCallbackQuery();
+    await renderAdminList(ctx, env, lang, true);
+    return;
+  }
+
+  if (action === "view") {
+    await ctx.answerCallbackQuery();
+    await renderAdminDetail(ctx, env, lang, rest[1], true);
+    return;
+  }
+
+  if (action === "toggle") {
+    const key = rest[1] as PermissionKey;
+    const targetId = rest[2];
+    const info = await getAdminInfo(env, parseInt(targetId, 10));
+    if (info?.isSuper) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    await togglePermission(env, targetId, key);
+    await ctx.answerCallbackQuery();
+    await renderAdminDetail(ctx, env, lang, targetId, true);
+    return;
+  }
+
+  if (action === "del") {
+    const targetId = rest[1];
+    const info = await getAdminInfo(env, parseInt(targetId, 10));
+    if (info?.isSuper) {
+      await ctx.answerCallbackQuery({ text: t(lang, "cannot_remove_super") });
+      return;
+    }
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text(t(lang, "btn_yes_delete"), `adminmgmt:delok:${targetId}`)
+      .text(t(lang, "btn_no"), `adminmgmt:view:${targetId}`);
+    await ctx.editMessageText(t(lang, "remove_admin_confirm", { id: targetId }), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "delok") {
+    const targetId = rest[1];
+    const info = await getAdminInfo(env, parseInt(targetId, 10));
+    if (info?.isSuper) {
+      await ctx.answerCallbackQuery({ text: t(lang, "cannot_remove_super") });
+      return;
+    }
+    await removeAdmin(env, targetId);
+    await ctx.answerCallbackQuery({ text: t(lang, "remove_admin_ok") });
+    await renderAdminList(ctx, env, lang, true);
     return;
   }
 }
@@ -2130,6 +2472,7 @@ async function runAdBroadcast(ctx: Context, env: Env, lang: Lang, targetLang: La
     await ctx.reply(t(lang, "no_ad_set"));
     return;
   }
+  const entities = ad.entities ? JSON.parse(ad.entities) : undefined;
   const ids = await getUserIdsByLang(env, targetLang);
   const status = await ctx.reply(t(lang, "broadcast_sending", { count: ids.length }));
 
@@ -2142,10 +2485,11 @@ async function runAdBroadcast(ctx: Context, env: Env, lang: Lang, targetLang: La
       batch.map(async (id) => {
         if (ad.file_id && ad.file_type) {
           const method = SEND_METHOD[ad.file_type] ?? "sendPhoto";
+          const opts = ad.caption ? { caption: ad.caption, caption_entities: entities } : undefined;
           // @ts-ignore - dynamic method dispatch on the Bot API
-          return ctx.api[method](id, ad.file_id, ad.caption ? { caption: ad.caption } : undefined);
+          return ctx.api[method](id, ad.file_id, opts);
         }
-        return ctx.api.sendMessage(id, ad.caption ?? "");
+        return ctx.api.sendMessage(id, ad.caption ?? "", { entities });
       })
     );
     for (const r of results) {
@@ -2170,9 +2514,9 @@ async function performStart(ctx: Context, env: Env, userId: number, lang: Lang, 
   }
 
   await sendAdIfConfigured(ctx, env, lang);
-  const admin = await isAdmin(env, userId);
-  if (admin) {
-    await ctx.reply(t(lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(lang) });
+  const adminInfo = await getAdminInfo(env, userId);
+  if (adminInfo) {
+    await ctx.reply(t(lang, "welcome_admin"), { reply_markup: mainReplyKeyboard(lang, adminInfo) });
   } else {
     await ctx.reply(t(lang, "welcome_user"));
   }
