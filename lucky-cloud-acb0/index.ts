@@ -31,6 +31,7 @@ export interface Env {
   BOT_USERNAME: string;
   ENVIRONMENT: string;
   DB: D1Database;
+  AI: Ai;
 }
 
 // =========================================================================
@@ -43,6 +44,23 @@ const AUTO_DELETE_PRESETS = [0, 30, 60, 300, 600, 3600];
 const CHANNELS_PAGE_SIZE = 8;
 const ARCHIVES_PAGE_SIZE = 6;
 const DEFAULT_LANG: Lang = "fa";
+
+// ---------- AI assistant ----------
+// A single Workers AI model handles BOTH vision (it can actually look at
+// photos sent to it) and tool/function calling — no separate captioning
+// model needed, and no external API key: this runs entirely on Cloudflare's
+// free Workers AI tier (the `AI` binding in wrangler.jsonc).
+const AI_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+// How long, after a post is actually published to the channel, the AI is
+// still allowed to fix a mistake in it. Enforced server-side in
+// aiEditRecentPost — the tool call is refused outright once this has
+// elapsed, regardless of what it's asked to do.
+const AI_EDIT_WINDOW_MS = 2 * 60 * 1000;
+// How many recent turns of a chat with the AI assistant are kept as
+// context. Old turns are pruned automatically so this never grows forever.
+const AI_CHAT_HISTORY_TURNS = 16;
+const AI_ACTIVITY_PAGE_SIZE = 10;
+const AI_SCHEDULED_PAGE_SIZE = 8;
 
 // =========================================================================
 // i18n
@@ -94,6 +112,7 @@ const T = {
     perm_ads: "📢 مدیریت تبلیغات",
     perm_broadcast: "📢 پیام همگانی",
     perm_settings: "⚙️ تنظیم حذف خودکار",
+    perm_ai: "🤖 دستیار هوشمند",
     btn_remove_admin: "🗑 حذف این ادمین",
     remove_admin_confirm: "آیا از حذف ادمین {id} مطمئن هستید؟",
     remove_admin_ok: "🗑 ادمین حذف شد.",
@@ -225,6 +244,57 @@ const T = {
     autodelete_custom_prompt: "مقدار دلخواه را به ثانیه ارسال کنید (عدد صحیح مثبت):",
     autodelete_set_ok: "✅ تأخیر حذف خودکار روی {seconds} ثانیه تنظیم شد.",
     invalid_number: "عدد نامعتبر است.",
+
+    // AI assistant
+    btn_ai_assistant: "🤖 دستیار هوشمند",
+    btn_ai_control: "🎛 کنترل و مدیریت AI",
+    ai_disabled_notice: "🚫 دستیار هوشمند در حال حاضر توسط ادمین کل خاموش است.",
+    ai_chat_welcome:
+      "🤖 با دستیار هوشمند در گفتگو هستید.\n\nمی‌تونید ازش سوال بپرسید (آب‌وهوا، تاریخ و ...)، قوانین ساختار پست‌هاتون رو بهش یاد بدید، یا فایل/عکس بفرستید و بگید باهاش چیکار کنه.\nهیچ پستی بدون تأیید نهایی خودتون منتشر نمی‌شه.\n\nبرای خروج از این حالت، دکمه‌ی زیر رو بزنید.",
+    btn_ai_chat_exit: "⏹ پایان گفتگو با دستیار",
+    ai_chat_exited: "گفتگو با دستیار هوشمند پایان یافت.",
+    ai_thinking: "🤖 در حال بررسی...",
+    ai_file_received: "📎 مورد {count} دریافت شد ({type}).\nهر وقت آماده بودید، بگویید این محتوا باید چطور و کجا منتشر شود.",
+    ai_error_generic: "⚠️ دستیار در پردازش این درخواست با خطا مواجه شد. لطفاً دوباره تلاش کنید.",
+    ai_no_content_yet: "برای این کار، اول باید حداقل یک فایل/عکس یا یک متن مشخص در اختیار دستیار بگذارید.",
+    ai_propose_title: "🤖 پیش‌نویس پست برای تأیید",
+    ai_propose_body:
+      "📋 درک دستیار از محتوا:\n{summary}\n\n📢 کانال: {channel}\n⏰ زمان‌بندی: {schedule}\n\nبرای انتشار طبق این زمان‌بندی، تأیید کنید:",
+    btn_ai_confirm: "✅ تأیید و فعال‌سازی",
+    btn_ai_reject: "❌ رد کردن",
+    ai_proposal_confirmed: "✅ تأیید شد. طبق زمان‌بندی گفته‌شده اجرا خواهد شد.",
+    ai_proposal_rejected: "❌ این پیش‌نویس رد و حذف شد.",
+    ai_schedule_once: "یک‌بار، در {time}",
+    ai_schedule_daily: "هر روز ساعت {time}",
+    ai_schedule_weekly: "هر هفته، {day} ساعت {time}",
+
+    // AI control panel
+    ai_control_title: "🎛 کنترل و مدیریت AI",
+    ai_control_body:
+      "کلید کلی: {master}\nپست‌گذاری خودکار: {autopost}\n\nℹ️ دستیار هرگز نمی‌تواند پست‌های منتشرشده یا زمان‌بندی‌شده‌ی قبلی را ویرایش یا حذف کند — این قابلیت اصلاً در اختیارش گذاشته نشده. تنها استثنا: می‌تواند پست‌ خودش را حداکثر تا ۲ دقیقه پس از انتشار، فقط برای رفع اشتباه، ویرایش کند.",
+    ai_master_on: "🟢 روشن",
+    ai_master_off: "🔴 خاموش",
+    btn_ai_toggle_master: "🔌 روشن/خاموش کردن کامل دستیار",
+    btn_ai_toggle_autopost: "⏯ روشن/خاموش کردن پست‌گذاری خودکار",
+    btn_ai_scheduled_list: "📋 پست‌های زمان‌بندی‌شده",
+    btn_ai_activity_log: "📜 گزارش فعالیت‌ها",
+    btn_ai_memory: "🧠 قوانین آموزش‌داده‌شده",
+    ai_master_toggled: "✅ وضعیت کلی دستیار تغییر کرد.",
+    ai_autopost_toggled: "✅ وضعیت پست‌گذاری خودکار تغییر کرد.",
+    ai_no_scheduled: "هیچ پست زمان‌بندی‌شده‌ی فعالی وجود ندارد.",
+    ai_scheduled_list_title: "📋 پست‌های زمان‌بندی‌شده ({count}):",
+    ai_scheduled_line: "📢 {channel} — {schedule}",
+    btn_ai_cancel_scheduled: "🗑 لغو این پست",
+    ai_scheduled_cancelled: "🗑 پست زمان‌بندی‌شده لغو شد.",
+    ai_no_memory: "هنوز هیچ قانونی به دستیار آموزش داده نشده است.",
+    ai_memory_list_title: "🧠 قوانین آموزش‌داده‌شده ({count}):",
+    btn_ai_delete_memory: "🗑 حذف این قانون",
+    ai_memory_deleted: "🗑 قانون حذف شد.",
+    btn_ai_clear_memory: "🗑 پاک‌کردن کامل حافظه",
+    ai_clear_memory_confirm: "آیا از پاک‌کردن کامل حافظه‌ی دستیار (همه‌ی قوانین آموزش‌داده‌شده) مطمئن هستید؟",
+    ai_memory_cleared: "🗑 حافظه‌ی دستیار کاملاً پاک شد.",
+    ai_no_activity: "هنوز فعالیتی ثبت نشده است.",
+    ai_activity_list_title: "📜 گزارش فعالیت‌ها ({count}):",
   },
   en: {
     welcome_user: "Welcome 👋",
@@ -268,6 +338,7 @@ const T = {
     perm_ads: "📢 Ads Management",
     perm_broadcast: "📢 Broadcast",
     perm_settings: "⚙️ Auto-delete Settings",
+    perm_ai: "🤖 AI Assistant",
     btn_remove_admin: "🗑 Remove This Admin",
     remove_admin_confirm: "Are you sure you want to remove admin {id}?",
     remove_admin_ok: "🗑 Admin removed.",
@@ -391,6 +462,57 @@ const T = {
     autodelete_custom_prompt: "Send a custom value in seconds (positive integer):",
     autodelete_set_ok: "✅ Auto-delete delay set to {seconds}s.",
     invalid_number: "Invalid number.",
+
+    // AI assistant
+    btn_ai_assistant: "🤖 AI Assistant",
+    btn_ai_control: "🎛 AI Control & Management",
+    ai_disabled_notice: "🚫 The AI assistant is currently turned off by the super-admin.",
+    ai_chat_welcome:
+      "🤖 You're chatting with the AI assistant.\n\nAsk it things (weather, date, etc.), teach it your post-structure rules, or send a file/photo and tell it what to do with it.\nNo post is ever published without your final confirmation.\n\nTap the button below to exit this mode.",
+    btn_ai_chat_exit: "⏹ End Chat With Assistant",
+    ai_chat_exited: "Chat with the AI assistant ended.",
+    ai_thinking: "🤖 Thinking...",
+    ai_file_received: "📎 Item {count} received ({type}).\nWhenever you're ready, tell it how and where this content should be published.",
+    ai_error_generic: "⚠️ The assistant hit an error processing this. Please try again.",
+    ai_no_content_yet: "For this, first give the assistant at least one file/photo or a specific piece of text.",
+    ai_propose_title: "🤖 Post Draft — Needs Your Approval",
+    ai_propose_body:
+      "📋 The assistant's understanding of the content:\n{summary}\n\n📢 Channel: {channel}\n⏰ Schedule: {schedule}\n\nConfirm to publish on this schedule:",
+    btn_ai_confirm: "✅ Confirm & Activate",
+    btn_ai_reject: "❌ Reject",
+    ai_proposal_confirmed: "✅ Confirmed. It will run on the schedule described.",
+    ai_proposal_rejected: "❌ This draft was rejected and discarded.",
+    ai_schedule_once: "once, at {time}",
+    ai_schedule_daily: "daily at {time}",
+    ai_schedule_weekly: "weekly on {day} at {time}",
+
+    // AI control panel
+    ai_control_title: "🎛 AI Control & Management",
+    ai_control_body:
+      "Master switch: {master}\nAuto-posting: {autopost}\n\nℹ️ The assistant can never edit or delete any previously published or scheduled post — that capability was never given to it. The one exception: it may edit its own just-published post, for up to 2 minutes, only to fix a mistake.",
+    ai_master_on: "🟢 On",
+    ai_master_off: "🔴 Off",
+    btn_ai_toggle_master: "🔌 Turn Assistant Fully On/Off",
+    btn_ai_toggle_autopost: "⏯ Turn Auto-posting On/Off",
+    btn_ai_scheduled_list: "📋 Scheduled Posts",
+    btn_ai_activity_log: "📜 Activity Log",
+    btn_ai_memory: "🧠 Taught Rules",
+    ai_master_toggled: "✅ Assistant master state changed.",
+    ai_autopost_toggled: "✅ Auto-posting state changed.",
+    ai_no_scheduled: "No active scheduled posts.",
+    ai_scheduled_list_title: "📋 Scheduled posts ({count}):",
+    ai_scheduled_line: "📢 {channel} — {schedule}",
+    btn_ai_cancel_scheduled: "🗑 Cancel This Post",
+    ai_scheduled_cancelled: "🗑 Scheduled post cancelled.",
+    ai_no_memory: "No rules have been taught to the assistant yet.",
+    ai_memory_list_title: "🧠 Taught rules ({count}):",
+    btn_ai_delete_memory: "🗑 Delete This Rule",
+    ai_memory_deleted: "🗑 Rule deleted.",
+    btn_ai_clear_memory: "🗑 Clear All Memory",
+    ai_clear_memory_confirm: "Are you sure you want to completely clear the assistant's memory (all taught rules)?",
+    ai_memory_cleared: "🗑 The assistant's memory was completely cleared.",
+    ai_no_activity: "No activity logged yet.",
+    ai_activity_list_title: "📜 Activity log ({count}):",
   },
 } as const;
 
@@ -426,6 +548,29 @@ type FileRow = {
 
 type ChannelRow = { id: number; channel_id: string; username: string | null; title: string | null };
 
+// ---------- AI assistant types ----------
+
+type AiContentFileRow = FileRow & { vision_description: string | null };
+
+type AiScheduledPostRow = {
+  id: number;
+  channel_id: number;
+  content_session_id: number | null;
+  caption: string | null;
+  schedule_type: "once" | "daily" | "weekly";
+  time_of_day: string | null;
+  day_of_week: number | null;
+  next_run_at: number;
+  status: "awaiting_confirmation" | "active" | "cancelled" | "done";
+  last_posted_at: number | null;
+  posted_chat_id: string | null;
+  posted_message_ids: string | null;
+  edit_locked_at: number | null;
+  created_by: string;
+};
+
+type AiMemoryRow = { id: number; rule_text: string; created_at: number };
+
 type ArchiveRow = {
   id: number;
   code: string;
@@ -447,6 +592,46 @@ function now() {
 
 function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** Gregorian -> Jalali (Persian) calendar conversion, no external library. */
+function toJalali(gy: number, gm: number, gd: number): { jy: number; jm: number; jd: number } {
+  const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  let jy = gy <= 1600 ? 0 : 979;
+  gy -= gy <= 1600 ? 621 : 1600;
+  const gy2 = gm > 2 ? gy + 1 : gy;
+  let days =
+    365 * gy +
+    Math.floor((gy2 + 3) / 4) -
+    Math.floor((gy2 + 99) / 100) +
+    Math.floor((gy2 + 399) / 400) -
+    80 +
+    gd +
+    g_d_m[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  const jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+  return { jy, jm, jd };
+}
+
+const JALALI_MONTHS_FA = [
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+];
+
+function formatNowForAi(): string {
+  const d = new Date();
+  const { jy, jm, jd } = toJalali(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `Gregorian: ${d.toISOString().slice(0, 10)} ${hh}:${mm} UTC | Jalali (Persian): ${jd} ${JALALI_MONTHS_FA[jm - 1]} ${jy}`;
 }
 
 function generateCode(): string {
@@ -524,7 +709,7 @@ async function adminCount(env: Env): Promise<number> {
 
 // ---------- admin roles & permissions ----------
 
-type PermissionKey = "upload" | "channels" | "archives_manage" | "ads" | "broadcast" | "settings";
+type PermissionKey = "upload" | "channels" | "archives_manage" | "ads" | "broadcast" | "settings" | "ai";
 
 const DEFAULT_ADMIN_PERMISSIONS: Record<PermissionKey, boolean> = {
   upload: true,
@@ -533,6 +718,7 @@ const DEFAULT_ADMIN_PERMISSIONS: Record<PermissionKey, boolean> = {
   ads: false,
   broadcast: true,
   settings: false,
+  ai: false,
 };
 
 type AdminInfo = { isSuper: boolean; permissions: Record<PermissionKey, boolean> };
@@ -929,6 +1115,212 @@ async function setGroupPrompt(env: Env, chatId: number, messageId: number) {
 }
 
 // =========================================================================
+// AI assistant — data access
+// =========================================================================
+
+// ---------- master switches (reuse the generic `settings` table) ----------
+
+async function isAiMasterEnabled(env: Env): Promise<boolean> {
+  return (await getSetting(env, "ai_master_enabled", "1")) !== "0";
+}
+async function setAiMasterEnabled(env: Env, on: boolean) {
+  await setSetting(env, "ai_master_enabled", on ? "1" : "0");
+}
+async function isAiAutopostEnabled(env: Env): Promise<boolean> {
+  return (await getSetting(env, "ai_autopost_enabled", "1")) !== "0";
+}
+async function setAiAutopostEnabled(env: Env, on: boolean) {
+  await setSetting(env, "ai_autopost_enabled", on ? "1" : "0");
+}
+
+// ---------- memory (rules the admin taught the AI) ----------
+
+async function addAiMemory(env: Env, ruleText: string) {
+  await env.DB.prepare("INSERT INTO ai_memory (rule_text, created_at) VALUES (?, ?)").bind(ruleText, now()).run();
+}
+async function getAllAiMemory(env: Env): Promise<AiMemoryRow[]> {
+  const res = await env.DB.prepare("SELECT id, rule_text, created_at FROM ai_memory ORDER BY id ASC").all<AiMemoryRow>();
+  return res.results ?? [];
+}
+async function deleteAiMemory(env: Env, id: number) {
+  await env.DB.prepare("DELETE FROM ai_memory WHERE id = ?").bind(id).run();
+}
+async function clearAllAiMemory(env: Env) {
+  await env.DB.prepare("DELETE FROM ai_memory").run();
+}
+
+// ---------- content staging session ----------
+
+async function getActiveAiContentSession(env: Env, adminId: number): Promise<{ id: number } | null> {
+  const row = await env.DB.prepare(
+    "SELECT id FROM ai_content_sessions WHERE admin_telegram_id = ? AND status = 'collecting' ORDER BY id DESC LIMIT 1"
+  ).bind(String(adminId)).first<{ id: number }>();
+  return row ?? null;
+}
+async function getOrStartAiContentSession(env: Env, adminId: number): Promise<number> {
+  const existing = await getActiveAiContentSession(env, adminId);
+  if (existing) return existing.id;
+  const t0 = now();
+  const res = await env.DB.prepare(
+    "INSERT INTO ai_content_sessions (admin_telegram_id, status, created_at, updated_at) VALUES (?, 'collecting', ?, ?)"
+  ).bind(String(adminId), t0, t0).run();
+  return res.meta.last_row_id as number;
+}
+async function addFileToAiContentSession(env: Env, sessionId: number, f: Omit<FileRow, "order_index">, visionDescription: string | null): Promise<number> {
+  const res = await env.DB.prepare(
+    `INSERT INTO ai_content_session_files (session_id, file_id, file_unique_id, file_type, file_name, caption, order_index, created_at, vision_description)
+     VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(order_index), 0) + 1 FROM ai_content_session_files WHERE session_id = ?), ?, ?)`
+  ).bind(sessionId, f.file_id, f.file_unique_id, f.file_type, f.file_name, f.caption, sessionId, now(), visionDescription).run();
+  const row = await env.DB.prepare("SELECT order_index FROM ai_content_session_files WHERE id = ?")
+    .bind(res.meta.last_row_id).first<{ order_index: number }>();
+  return row?.order_index ?? 1;
+}
+async function getAiContentSessionFiles(env: Env, sessionId: number): Promise<AiContentFileRow[]> {
+  const res = await env.DB.prepare(
+    "SELECT file_id, file_unique_id, file_type, file_name, caption, order_index, vision_description FROM ai_content_session_files WHERE session_id = ? ORDER BY order_index ASC"
+  ).bind(sessionId).all<AiContentFileRow>();
+  return res.results ?? [];
+}
+async function markAiContentSessionUsed(env: Env, sessionId: number) {
+  await env.DB.prepare("UPDATE ai_content_sessions SET status = 'used', updated_at = ? WHERE id = ?").bind(now(), sessionId).run();
+}
+async function clearAiContentSession(env: Env, adminId: number) {
+  const existing = await getActiveAiContentSession(env, adminId);
+  if (!existing) return;
+  await env.DB.prepare("UPDATE ai_content_sessions SET status = 'cancelled', updated_at = ? WHERE id = ?").bind(now(), existing.id).run();
+  await env.DB.prepare("DELETE FROM ai_content_session_files WHERE session_id = ?").bind(existing.id).run();
+}
+
+// ---------- scheduled posts ----------
+
+function computeNextRun(scheduleType: "once" | "daily" | "weekly", timeOfDay: string | null, dayOfWeek: number | null, fromMs: number): number {
+  if (scheduleType === "once") return fromMs;
+  const [hh, mm] = (timeOfDay ?? "09:00").split(":").map((x) => parseInt(x, 10));
+  const d = new Date(fromMs);
+  d.setUTCSeconds(0, 0);
+  d.setUTCHours(hh, mm, 0, 0);
+  if (scheduleType === "daily") {
+    if (d.getTime() <= fromMs) d.setUTCDate(d.getUTCDate() + 1);
+    return d.getTime();
+  }
+  // weekly
+  const targetDow = dayOfWeek ?? d.getUTCDay();
+  let diff = (targetDow - d.getUTCDay() + 7) % 7;
+  if (diff === 0 && d.getTime() <= fromMs) diff = 7;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.getTime();
+}
+
+async function createAiScheduledPost(
+  env: Env,
+  createdBy: string,
+  channelDbId: number,
+  contentSessionId: number | null,
+  caption: string | null,
+  scheduleType: "once" | "daily" | "weekly",
+  timeOfDay: string | null,
+  dayOfWeek: number | null
+): Promise<number> {
+  const t0 = now();
+  const nextRun = scheduleType === "once" && !timeOfDay ? t0 : computeNextRun(scheduleType, timeOfDay, dayOfWeek, t0);
+  const res = await env.DB.prepare(
+    `INSERT INTO ai_scheduled_posts
+       (channel_id, content_session_id, caption, schedule_type, time_of_day, day_of_week, next_run_at, status, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'awaiting_confirmation', ?, ?, ?)`
+  ).bind(channelDbId, contentSessionId, caption, scheduleType, timeOfDay, dayOfWeek, nextRun, createdBy, t0, t0).run();
+  return res.meta.last_row_id as number;
+}
+
+async function getAiScheduledPost(env: Env, id: number): Promise<AiScheduledPostRow | null> {
+  const row = await env.DB.prepare("SELECT * FROM ai_scheduled_posts WHERE id = ?").bind(id).first<AiScheduledPostRow>();
+  return row ?? null;
+}
+
+async function confirmAiScheduledPost(env: Env, id: number) {
+  await env.DB.prepare("UPDATE ai_scheduled_posts SET status = 'active', updated_at = ? WHERE id = ? AND status = 'awaiting_confirmation'")
+    .bind(now(), id).run();
+}
+
+async function rejectAiScheduledPost(env: Env, id: number) {
+  await env.DB.prepare("DELETE FROM ai_scheduled_posts WHERE id = ? AND status = 'awaiting_confirmation'").bind(id).run();
+}
+
+/** Cancel — only ever reachable for posts that are not yet published, or
+ *  for the admin cancelling their own recurring series going forward.
+ *  Never deletes anything already sent to the channel. */
+async function cancelAiScheduledPost(env: Env, id: number) {
+  await env.DB.prepare("UPDATE ai_scheduled_posts SET status = 'cancelled', updated_at = ? WHERE id = ?").bind(now(), id).run();
+}
+
+async function listActiveAiScheduledPosts(env: Env): Promise<AiScheduledPostRow[]> {
+  const res = await env.DB.prepare("SELECT * FROM ai_scheduled_posts WHERE status = 'active' ORDER BY next_run_at ASC").all<AiScheduledPostRow>();
+  return res.results ?? [];
+}
+
+async function findDueAiScheduledPosts(env: Env): Promise<AiScheduledPostRow[]> {
+  const res = await env.DB.prepare("SELECT * FROM ai_scheduled_posts WHERE status = 'active' AND next_run_at <= ? LIMIT 20")
+    .bind(now()).all<AiScheduledPostRow>();
+  return res.results ?? [];
+}
+
+async function afterAiPostPublished(env: Env, post: AiScheduledPostRow, chatId: string, messageIds: number[]) {
+  const t0 = now();
+  const isRecurring = post.schedule_type !== "once";
+  const nextRun = isRecurring ? computeNextRun(post.schedule_type, post.time_of_day, post.day_of_week, t0 + 60000) : post.next_run_at;
+  await env.DB.prepare(
+    `UPDATE ai_scheduled_posts
+     SET status = ?, last_posted_at = ?, posted_chat_id = ?, posted_message_ids = ?, edit_locked_at = ?, next_run_at = ?, updated_at = ?
+     WHERE id = ?`
+  ).bind(
+    isRecurring ? "active" : "done",
+    t0,
+    chatId,
+    JSON.stringify(messageIds),
+    t0 + AI_EDIT_WINDOW_MS,
+    nextRun,
+    t0,
+    post.id
+  ).run();
+}
+
+// ---------- activity log ----------
+
+async function logAiActivity(env: Env, actionType: string, detail: string, channelId?: number) {
+  await env.DB.prepare("INSERT INTO ai_activity_log (action_type, detail, channel_id, created_at) VALUES (?, ?, ?, ?)")
+    .bind(actionType, detail, channelId ?? null, now()).run();
+}
+async function listAiActivity(env: Env, limit: number, offset: number) {
+  const res = await env.DB.prepare("SELECT action_type, detail, created_at FROM ai_activity_log ORDER BY id DESC LIMIT ? OFFSET ?")
+    .bind(limit, offset).all<{ action_type: string; detail: string; created_at: number }>();
+  return res.results ?? [];
+}
+async function countAiActivity(env: Env): Promise<number> {
+  const row = await env.DB.prepare("SELECT COUNT(*) as c FROM ai_activity_log").first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+// ---------- short rolling chat history (per admin) ----------
+
+async function appendAiChatHistory(env: Env, telegramId: number, role: "user" | "model" | "tool", content: string) {
+  await env.DB.prepare("INSERT INTO ai_chat_history (telegram_id, role, content, created_at) VALUES (?, ?, ?, ?)")
+    .bind(String(telegramId), role, content, now()).run();
+  // prune anything beyond the last AI_CHAT_HISTORY_TURNS*2 rows for this admin
+  await env.DB.prepare(
+    `DELETE FROM ai_chat_history WHERE telegram_id = ? AND id NOT IN (
+       SELECT id FROM ai_chat_history WHERE telegram_id = ? ORDER BY id DESC LIMIT ?
+     )`
+  ).bind(String(telegramId), String(telegramId), AI_CHAT_HISTORY_TURNS * 2).run();
+}
+async function getAiChatHistory(env: Env, telegramId: number): Promise<{ role: "user" | "model" | "tool"; content: string }[]> {
+  const res = await env.DB.prepare("SELECT role, content FROM ai_chat_history WHERE telegram_id = ? ORDER BY id ASC")
+    .bind(String(telegramId)).all<{ role: "user" | "model" | "tool"; content: string }>();
+  return res.results ?? [];
+}
+async function clearAiChatHistory(env: Env, telegramId: number) {
+  await env.DB.prepare("DELETE FROM ai_chat_history WHERE telegram_id = ?").bind(String(telegramId)).run();
+}
+
+// =========================================================================
 // Keyboards
 // =========================================================================
 
@@ -948,6 +1340,7 @@ function mainReplyKeyboard(lang: Lang, info: AdminInfo): Keyboard {
 
   if (info.isSuper || perms.broadcast) kb.text(t(lang, "btn_broadcast")).row();
   if (info.isSuper || perms.ads) kb.text(t(lang, "btn_ads")).row();
+  if (info.isSuper || perms.ai) kb.text(t(lang, "btn_ai_assistant")).text(t(lang, "btn_ai_control")).row();
 
   kb.text(t(lang, "btn_settings")).row();
   if (info.isSuper) kb.text(t(lang, "btn_admin_mgmt")).row();
@@ -957,6 +1350,645 @@ function mainReplyKeyboard(lang: Lang, info: AdminInfo): Keyboard {
 
 function matchAnyLang(text: string, key: TKey): boolean {
   return text === T.fa[key] || text === T.en[key];
+}
+
+// =========================================================================
+// AI assistant — engine (vision, weather, tools, tool-calling loop)
+// =========================================================================
+
+/** Downloads a Telegram file and returns it as a base64 data URI, so it can
+ *  be handed directly to the vision model. */
+async function telegramFileToDataUri(env: Env, ctx: Context, fileId: string): Promise<string | null> {
+  try {
+    const file = await ctx.api.getFile(fileId);
+    if (!file.file_path) return null;
+    const url = `https://api.telegram.org/file/bot${env.BOT_TOKEN}/${file.file_path}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const b64 = btoa(binary);
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    return `data:${contentType};base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Real, model-based understanding of an image (not a guess) — computed
+ *  once, at upload time, and cached in ai_content_session_files so the
+ *  assistant never has to re-analyze the same file twice. */
+async function analyzeImageForAi(env: Env, dataUri: string): Promise<string | null> {
+  try {
+    const result: any = await env.AI.run(AI_MODEL, {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "این تصویر را دقیق و مختصر (حداکثر ۲ جمله) به فارسی توصیف کن: چه چیزی در تصویر است، اگر متنی روی آن هست بگو چه متنی، و حال‌وهوای کلی آن." },
+            { type: "image_url", image_url: { url: dataUri } },
+          ],
+        },
+      ],
+      max_tokens: 200,
+    });
+    return result?.response ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function geocodeCity(city: string): Promise<{ lat: number; lon: number; name: string } | null> {
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fa`);
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    const first = data?.results?.[0];
+    if (!first) return null;
+    return { lat: first.latitude, lon: first.longitude, name: first.name };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWeather(city: string): Promise<string> {
+  const loc = await geocodeCity(city);
+  if (!loc) return `شهر «${city}» پیدا نشد.`;
+  try {
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`
+    );
+    if (!res.ok) return "دریافت اطلاعات آب‌وهوا با خطا مواجه شد.";
+    const data: any = await res.json();
+    const c = data?.current;
+    if (!c) return "اطلاعات آب‌وهوا در دسترس نبود.";
+    return `آب‌وهوای ${loc.name}: دمای فعلی ${c.temperature_2m}°C، سرعت باد ${c.wind_speed_10m} km/h.`;
+  } catch {
+    return "دریافت اطلاعات آب‌وهوا با خطا مواجه شد.";
+  }
+}
+
+// ---------- tool (function) definitions given to the model ----------
+// Deliberately does NOT include anything that deletes/edits an existing
+// channel, admin, archive, or already-published post — those simply have
+// no corresponding tool, so the model has no way to reach them.
+
+const AI_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "get_datetime",
+      description: "Get the current date and time (Gregorian and Persian/Jalali calendars).",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_weather",
+      description: "Get the current weather for a named city.",
+      parameters: {
+        type: "object",
+        properties: { city: { type: "string", description: "City name, e.g. Tehran" } },
+        required: ["city"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_channels",
+      description: "List the Telegram channels currently connected to this bot, where the bot is admin and can post.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_pending_content",
+      description: "List the files/photos the admin has sent in this conversation, in the exact order they were sent, with a real description of each.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "save_rule",
+      description: "Permanently remember a rule/structure/convention the admin is teaching you about how this channel's posts should look. Use this whenever the admin explains 'our posts are structured like...' or similar.",
+      parameters: {
+        type: "object",
+        properties: { rule_text: { type: "string", description: "The rule, written clearly, in the language the admin used." } },
+        required: ["rule_text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_post",
+      description:
+        "Create a DRAFT scheduled post for the admin to review and approve. This does NOT publish anything by itself — it only shows the admin a preview with your understanding of the content, and nothing runs until the admin taps Confirm. Requires that the admin has already provided content (check list_pending_content first) OR an explicit text_body.",
+      parameters: {
+        type: "object",
+        properties: {
+          channel_title_or_username: { type: "string", description: "Which connected channel to post to — match against list_channels." },
+          content_summary_fa: { type: "string", description: "Your own understanding of the content and its order, written in Persian, to show the admin for confirmation. Be specific about order (e.g. 'album of 2 photos then a text caption')." },
+          text_body: { type: "string", description: "Optional extra caption/text to accompany the pending files, or the full post text if there are no files." },
+          schedule_type: { type: "string", enum: ["once", "daily", "weekly"] },
+          time_of_day: { type: "string", description: "HH:MM 24-hour, in UTC." },
+          day_of_week: { type: "number", description: "0=Sunday..6=Saturday, only for weekly schedules." },
+        },
+        required: ["channel_title_or_username", "content_summary_fa", "schedule_type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_scheduled_posts",
+      description: "List the scheduled posts you (the assistant) have created that are awaiting confirmation or already active.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_my_scheduled_post",
+      description: "Cancel one of your own scheduled posts (only ones you created, and only before/around its own confirmation — for anything else, tell the admin to use the AI Control panel).",
+      parameters: {
+        type: "object",
+        properties: { post_id: { type: "number" } },
+        required: ["post_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "edit_recent_post",
+      description:
+        "Fix a mistake in a post you JUST published, ONLY within a couple of minutes of publishing it. Will be refused automatically once that window has passed. Cannot be used on multi-file albums, and can never touch anything not created by you.",
+      parameters: {
+        type: "object",
+        properties: {
+          post_id: { type: "number" },
+          new_text: { type: "string", description: "The corrected caption/text." },
+        },
+        required: ["post_id", "new_text"],
+      },
+    },
+  },
+] as const;
+
+type AiToolCallCtx = {
+  env: Env;
+  ctx: Context;
+  adminId: number;
+  lang: Lang;
+};
+
+async function executeAiTool(tc: AiToolCallCtx, name: string, args: any): Promise<string> {
+  const { env, adminId } = tc;
+  switch (name) {
+    case "get_datetime":
+      return formatNowForAi();
+
+    case "get_weather":
+      return await fetchWeather(String(args.city ?? ""));
+
+    case "list_channels": {
+      const channels = await getAllChannels(env);
+      if (channels.length === 0) return "No channels connected yet.";
+      return channels.map((c) => `id=${c.id} title="${c.title ?? c.username ?? c.channel_id}"`).join("\n");
+    }
+
+    case "list_pending_content": {
+      const session = await getActiveAiContentSession(env, adminId);
+      if (!session) return "No content has been sent yet.";
+      const files = await getAiContentSessionFiles(env, session.id);
+      if (files.length === 0) return "No content has been sent yet.";
+      return files
+        .map((f) => `#${f.order_index} type=${f.file_type}${f.caption ? ` caption="${f.caption}"` : ""}${f.vision_description ? ` — ${f.vision_description}` : ""}`)
+        .join("\n");
+    }
+
+    case "save_rule": {
+      const ruleText = String(args.rule_text ?? "").trim();
+      if (!ruleText) return "Error: empty rule.";
+      await addAiMemory(env, ruleText);
+      await logAiActivity(env, "rule_saved", ruleText);
+      return "Rule saved permanently.";
+    }
+
+    case "propose_post": {
+      const session = await getActiveAiContentSession(env, adminId);
+      const files = session ? await getAiContentSessionFiles(env, session.id) : [];
+      const textBody = args.text_body ? String(args.text_body) : null;
+      if (files.length === 0 && !textBody) {
+        return "Error: no content available yet. Ask the admin to send files or specify the exact text first.";
+      }
+      const channels = await getAllChannels(env);
+      const needle = String(args.channel_title_or_username ?? "").toLowerCase();
+      const channel = channels.find(
+        (c) => (c.title ?? "").toLowerCase().includes(needle) || (c.username ?? "").toLowerCase().includes(needle)
+      );
+      if (!channel) return `Error: channel "${args.channel_title_or_username}" not found among connected channels. Call list_channels first.`;
+      const scheduleType = (["once", "daily", "weekly"].includes(args.schedule_type) ? args.schedule_type : "once") as
+        | "once"
+        | "daily"
+        | "weekly";
+      const timeOfDay = args.time_of_day ?? null;
+      const dayOfWeek = typeof args.day_of_week === "number" ? args.day_of_week : null;
+
+      const postId = await createAiScheduledPost(
+        env,
+        String(adminId),
+        channel.id,
+        session ? session.id : null,
+        textBody,
+        scheduleType,
+        timeOfDay,
+        dayOfWeek
+      );
+      if (session) await markAiContentSessionUsed(env, session.id);
+
+      await sendAiProposalMessage(tc.ctx, env, tc.lang, postId, channel, String(args.content_summary_fa ?? ""), scheduleType, timeOfDay, dayOfWeek);
+      return `Draft #${postId} created and shown to the admin for confirmation. Do not tell the admin it is already scheduled — it only runs after they tap Confirm.`;
+    }
+
+    case "list_my_scheduled_posts": {
+      const posts = await listActiveAiScheduledPosts(env);
+      const mine = posts.filter((p) => p.created_by === String(adminId));
+      if (mine.length === 0) return "No active scheduled posts.";
+      return mine.map((p) => `id=${p.id} schedule=${p.schedule_type} time=${p.time_of_day ?? "-"}`).join("\n");
+    }
+
+    case "cancel_my_scheduled_post": {
+      const post = await getAiScheduledPost(env, Number(args.post_id));
+      if (!post || post.created_by !== String(adminId)) return "Error: no such scheduled post found for you.";
+      if (post.status === "done") return "Error: this post was already published and cannot be cancelled.";
+      await cancelAiScheduledPost(env, post.id);
+      await logAiActivity(env, "schedule_cancelled", `post #${post.id}`, post.channel_id);
+      return "Cancelled.";
+    }
+
+    case "edit_recent_post": {
+      return await aiEditRecentPost(env, tc.ctx, adminId, Number(args.post_id), String(args.new_text ?? ""));
+    }
+
+    default:
+      return `Error: unknown tool "${name}".`;
+  }
+}
+
+/** Server-enforced edit window: refuses outright once AI_EDIT_WINDOW_MS has
+ *  elapsed since publication, no matter what the model is asked to do, and
+ *  refuses multi-message albums since a partial caption edit across an
+ *  album would be misleading. */
+async function aiEditRecentPost(env: Env, ctx: Context, adminId: number, postId: number, newText: string): Promise<string> {
+  const post = await getAiScheduledPost(env, postId);
+  if (!post || post.created_by !== String(adminId)) return "Error: no such post found for you.";
+  if (!post.last_posted_at || !post.posted_chat_id || !post.posted_message_ids) return "Error: this post has not been published yet.";
+  if (!post.edit_locked_at || now() > post.edit_locked_at) return "Error: the edit window (2 minutes after publishing) has closed. This can no longer be changed.";
+  const ids: number[] = JSON.parse(post.posted_message_ids);
+  if (ids.length !== 1) return "Error: multi-file album posts cannot be edited — only single-message posts.";
+  try {
+    await ctx.api.editMessageCaption(post.posted_chat_id, ids[0], { caption: newText });
+  } catch {
+    try {
+      await ctx.api.editMessageText(post.posted_chat_id, ids[0], newText);
+    } catch {
+      return "Error: Telegram refused the edit (it may have no caption/text to edit).";
+    }
+  }
+  await logAiActivity(env, "post_edited", `post #${postId}`, post.channel_id);
+  return "Edited successfully.";
+}
+
+async function sendAiProposalMessage(
+  ctx: Context,
+  env: Env,
+  lang: Lang,
+  postId: number,
+  channel: ChannelRow,
+  summary: string,
+  scheduleType: "once" | "daily" | "weekly",
+  timeOfDay: string | null,
+  dayOfWeek: number | null
+) {
+  const scheduleText =
+    scheduleType === "once"
+      ? t(lang, "ai_schedule_once", { time: timeOfDay ?? "-" })
+      : scheduleType === "daily"
+        ? t(lang, "ai_schedule_daily", { time: timeOfDay ?? "-" })
+        : t(lang, "ai_schedule_weekly", { day: String(dayOfWeek ?? 0), time: timeOfDay ?? "-" });
+
+  const kb = new InlineKeyboard()
+    .text(t(lang, "btn_ai_confirm"), `aiart:confirm:${postId}`)
+    .text(t(lang, "btn_ai_reject"), `aiart:reject:${postId}`);
+
+  await ctx.reply(
+    `${t(lang, "ai_propose_title")}\n\n${t(lang, "ai_propose_body", {
+      summary,
+      channel: channel.title ?? channel.username ?? channel.channel_id,
+      schedule: scheduleText,
+    })}`,
+    { reply_markup: kb }
+  );
+}
+
+/** The core tool-calling loop: sends the conversation + tool definitions to
+ *  Workers AI, executes whatever tools the model asks for, feeds the
+ *  results back, and repeats until the model gives a final plain-text
+ *  answer (bounded, so a confused model can't loop forever). */
+async function runAiConversation(tc: AiToolCallCtx, userMessageContent: any): Promise<string> {
+  const { env, adminId } = tc;
+  const memory = await getAllAiMemory(env);
+  const history = await getAiChatHistory(env, adminId);
+
+  const systemPrompt =
+    `You are the professional Telegram-channel admin assistant for this bot. You act carefully and deliberately — you never publish or schedule anything without content, and you always double-check your own understanding before proposing a post.\n` +
+    `Reply to the admin in the same language they use (Persian by default).\n` +
+    `Rules the admin has taught you about this channel (always follow these):\n` +
+    (memory.length > 0 ? memory.map((m) => `- ${m.rule_text}`).join("\n") : "(none yet)");
+
+  const messages: any[] = [
+    { role: "system", content: systemPrompt },
+    ...history.map((h) => ({ role: h.role === "model" ? "assistant" : h.role, content: h.content })),
+    { role: "user", content: userMessageContent },
+  ];
+
+  await appendAiChatHistory(env, adminId, "user", typeof userMessageContent === "string" ? userMessageContent : "[content]");
+
+  let finalText = "";
+  for (let round = 0; round < 4; round++) {
+    let result: any;
+    try {
+      result = await env.AI.run(AI_MODEL, { messages, tools: AI_TOOLS as any, max_tokens: 700 });
+    } catch {
+      finalText = t(tc.lang, "ai_error_generic");
+      break;
+    }
+    const toolCalls = result?.tool_calls;
+    if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+      messages.push({ role: "assistant", content: result.response ?? "", tool_calls: toolCalls });
+      for (const call of toolCalls) {
+        const fnName = call.name ?? call.function?.name;
+        const fnArgs = call.arguments ?? (call.function?.arguments ? JSON.parse(call.function.arguments) : {});
+        const toolResult = await executeAiTool(tc, fnName, fnArgs);
+        messages.push({ role: "tool", content: toolResult, name: fnName });
+      }
+      continue;
+    }
+    finalText = result?.response ?? "";
+    break;
+  }
+
+  if (!finalText) finalText = t(tc.lang, "ai_error_generic");
+  await appendAiChatHistory(env, adminId, "model", finalText);
+  return finalText;
+}
+
+// =========================================================================
+// AI assistant — control panel (super-admin / "ai"-permitted admins only)
+// =========================================================================
+
+async function renderAiControlPanel(ctx: Context, env: Env, lang: Lang, edit: boolean) {
+  const masterOn = await isAiMasterEnabled(env);
+  const autopostOn = await isAiAutopostEnabled(env);
+  const kb = new InlineKeyboard()
+    .text(t(lang, "btn_ai_toggle_master"), "aictrl:togglemaster").row()
+    .text(t(lang, "btn_ai_toggle_autopost"), "aictrl:toggleautopost").row()
+    .text(t(lang, "btn_ai_scheduled_list"), "aictrl:sched:0").row()
+    .text(t(lang, "btn_ai_activity_log"), "aictrl:activity:0").row()
+    .text(t(lang, "btn_ai_memory"), "aictrl:memory:0").row()
+    .text(t(lang, "btn_close"), "nav:close");
+
+  const body = t(lang, "ai_control_body", {
+    master: masterOn ? t(lang, "ai_master_on") : t(lang, "ai_master_off"),
+    autopost: autopostOn ? t(lang, "ai_master_on") : t(lang, "ai_master_off"),
+  });
+  const full = `${t(lang, "ai_control_title")}\n\n${body}`;
+  if (edit) await ctx.editMessageText(full, { reply_markup: kb });
+  else await ctx.reply(full, { reply_markup: kb });
+}
+
+async function sendAiControlPanel(ctx: Context, env: Env, lang: Lang) {
+  await renderAiControlPanel(ctx, env, lang, false);
+}
+
+function scheduleTextFor(lang: Lang, post: AiScheduledPostRow): string {
+  if (post.schedule_type === "once") return t(lang, "ai_schedule_once", { time: post.time_of_day ?? "-" });
+  if (post.schedule_type === "daily") return t(lang, "ai_schedule_daily", { time: post.time_of_day ?? "-" });
+  return t(lang, "ai_schedule_weekly", { day: String(post.day_of_week ?? 0), time: post.time_of_day ?? "-" });
+}
+
+async function renderAiScheduledListWindow(ctx: Context, env: Env, lang: Lang, page: number, edit: boolean) {
+  const all = await listActiveAiScheduledPosts(env);
+  if (all.length === 0) {
+    const kb = new InlineKeyboard().text(t(lang, "btn_back"), "aictrl:backtopanel");
+    if (edit) await ctx.editMessageText(t(lang, "ai_no_scheduled"), { reply_markup: kb });
+    else await ctx.reply(t(lang, "ai_no_scheduled"), { reply_markup: kb });
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(all.length / AI_SCHEDULED_PAGE_SIZE));
+  const p = Math.min(Math.max(page, 0), totalPages - 1);
+  const slice = all.slice(p * AI_SCHEDULED_PAGE_SIZE, p * AI_SCHEDULED_PAGE_SIZE + AI_SCHEDULED_PAGE_SIZE);
+
+  const kb = new InlineKeyboard();
+  for (const post of slice) {
+    const channel = await getChannelById(env, post.channel_id);
+    const label = t(lang, "ai_scheduled_line", {
+      channel: channel?.title ?? channel?.username ?? channel?.channel_id ?? "?",
+      schedule: scheduleTextFor(lang, post),
+    });
+    kb.text(`🗑 ${label}`.slice(0, 64), `aictrl:cancelsched:${post.id}`).row();
+  }
+  if (totalPages > 1) {
+    kb.text("«", `aictrl:sched:${Math.max(0, p - 1)}`)
+      .text(`${p + 1}/${totalPages}`, `aictrl:sched:${p}`)
+      .text("»", `aictrl:sched:${Math.min(totalPages - 1, p + 1)}`)
+      .row();
+  }
+  kb.text(t(lang, "btn_back"), "aictrl:backtopanel");
+
+  const text = t(lang, "ai_scheduled_list_title", { count: all.length });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function renderAiActivityWindow(ctx: Context, env: Env, lang: Lang, page: number, edit: boolean) {
+  const total = await countAiActivity(env);
+  if (total === 0) {
+    const kb = new InlineKeyboard().text(t(lang, "btn_back"), "aictrl:backtopanel");
+    if (edit) await ctx.editMessageText(t(lang, "ai_no_activity"), { reply_markup: kb });
+    else await ctx.reply(t(lang, "ai_no_activity"), { reply_markup: kb });
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / AI_ACTIVITY_PAGE_SIZE));
+  const p = Math.min(Math.max(page, 0), totalPages - 1);
+  const items = await listAiActivity(env, AI_ACTIVITY_PAGE_SIZE, p * AI_ACTIVITY_PAGE_SIZE);
+  const lines = items.map((it) => {
+    const d = new Date(it.created_at).toISOString().slice(0, 16).replace("T", " ");
+    return `• [${it.action_type}] ${it.detail} — ${d}`;
+  });
+
+  const kb = new InlineKeyboard();
+  if (totalPages > 1) {
+    kb.text("«", `aictrl:activity:${Math.max(0, p - 1)}`)
+      .text(`${p + 1}/${totalPages}`, `aictrl:activity:${p}`)
+      .text("»", `aictrl:activity:${Math.min(totalPages - 1, p + 1)}`)
+      .row();
+  }
+  kb.text(t(lang, "btn_back"), "aictrl:backtopanel");
+
+  const text = `${t(lang, "ai_activity_list_title", { count: total })}\n\n${lines.join("\n")}`;
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+const AI_MEMORY_PAGE_SIZE = 8;
+
+async function renderAiMemoryWindow(ctx: Context, env: Env, lang: Lang, page: number, edit: boolean) {
+  const rules = await getAllAiMemory(env);
+  if (rules.length === 0) {
+    const kb = new InlineKeyboard().text(t(lang, "btn_back"), "aictrl:backtopanel");
+    if (edit) await ctx.editMessageText(t(lang, "ai_no_memory"), { reply_markup: kb });
+    else await ctx.reply(t(lang, "ai_no_memory"), { reply_markup: kb });
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(rules.length / AI_MEMORY_PAGE_SIZE));
+  const p = Math.min(Math.max(page, 0), totalPages - 1);
+  const slice = rules.slice(p * AI_MEMORY_PAGE_SIZE, p * AI_MEMORY_PAGE_SIZE + AI_MEMORY_PAGE_SIZE);
+
+  const kb = new InlineKeyboard();
+  for (const r of slice) {
+    kb.text(`🗑 ${r.rule_text}`.slice(0, 64), `aictrl:delrule:${r.id}`).row();
+  }
+  if (totalPages > 1) {
+    kb.text("«", `aictrl:memory:${Math.max(0, p - 1)}`)
+      .text(`${p + 1}/${totalPages}`, `aictrl:memory:${p}`)
+      .text("»", `aictrl:memory:${Math.min(totalPages - 1, p + 1)}`)
+      .row();
+  }
+  kb.text(t(lang, "btn_ai_clear_memory"), "aictrl:clearmemconfirm").row();
+  kb.text(t(lang, "btn_back"), "aictrl:backtopanel");
+
+  const text = t(lang, "ai_memory_list_title", { count: rules.length });
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function handleAiCtrlCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
+  const action = rest[0];
+
+  if (action === "backtopanel") {
+    await ctx.answerCallbackQuery();
+    await renderAiControlPanel(ctx, env, lang, true);
+    return;
+  }
+
+  if (action === "togglemaster") {
+    await setAiMasterEnabled(env, !(await isAiMasterEnabled(env)));
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_master_toggled") });
+    await renderAiControlPanel(ctx, env, lang, true);
+    return;
+  }
+
+  if (action === "toggleautopost") {
+    await setAiAutopostEnabled(env, !(await isAiAutopostEnabled(env)));
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_autopost_toggled") });
+    await renderAiControlPanel(ctx, env, lang, true);
+    return;
+  }
+
+  if (action === "sched") {
+    const page = parseInt(rest[1] ?? "0", 10);
+    await ctx.answerCallbackQuery();
+    await renderAiScheduledListWindow(ctx, env, lang, page, true);
+    return;
+  }
+
+  if (action === "cancelsched") {
+    const id = parseInt(rest[1], 10);
+    const post = await getAiScheduledPost(env, id);
+    await cancelAiScheduledPost(env, id);
+    await logAiActivity(env, "schedule_cancelled", `post #${id} cancelled from control panel`, post?.channel_id);
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_scheduled_cancelled") });
+    await renderAiScheduledListWindow(ctx, env, lang, 0, true);
+    return;
+  }
+
+  if (action === "activity") {
+    const page = parseInt(rest[1] ?? "0", 10);
+    await ctx.answerCallbackQuery();
+    await renderAiActivityWindow(ctx, env, lang, page, true);
+    return;
+  }
+
+  if (action === "memory") {
+    const page = parseInt(rest[1] ?? "0", 10);
+    await ctx.answerCallbackQuery();
+    await renderAiMemoryWindow(ctx, env, lang, page, true);
+    return;
+  }
+
+  if (action === "delrule") {
+    const id = parseInt(rest[1], 10);
+    await deleteAiMemory(env, id);
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_memory_deleted") });
+    await renderAiMemoryWindow(ctx, env, lang, 0, true);
+    return;
+  }
+
+  if (action === "clearmemconfirm") {
+    await ctx.answerCallbackQuery();
+    const kb = new InlineKeyboard()
+      .text(t(lang, "btn_yes_delete"), "aictrl:clearmemok")
+      .text(t(lang, "btn_no"), "aictrl:memory:0");
+    await ctx.editMessageText(t(lang, "ai_clear_memory_confirm"), { reply_markup: kb });
+    return;
+  }
+
+  if (action === "clearmemok") {
+    await clearAllAiMemory(env);
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_memory_cleared") });
+    await renderAiMemoryWindow(ctx, env, lang, 0, true);
+    return;
+  }
+}
+
+/** Handles the Confirm/Reject buttons on a single post proposal. Confirming
+ *  only flips it to 'active' so the cron picks it up at its scheduled
+ *  time — nothing is ever published directly from this callback. */
+async function handleAiProposalCallback(ctx: Context, env: Env, lang: Lang, rest: string[]) {
+  const action = rest[0];
+  const postId = parseInt(rest[1], 10);
+  const post = await getAiScheduledPost(env, postId);
+  if (!post) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  if (action === "confirm") {
+    await confirmAiScheduledPost(env, postId);
+    await logAiActivity(env, "post_scheduled", `post #${postId} confirmed by admin`, post.channel_id);
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_proposal_confirmed") });
+    await ctx.editMessageText(t(lang, "ai_proposal_confirmed"));
+    return;
+  }
+
+  if (action === "reject") {
+    await rejectAiScheduledPost(env, postId);
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_proposal_rejected") });
+    await ctx.editMessageText(t(lang, "ai_proposal_rejected"));
+    return;
+  }
 }
 
 // =========================================================================
@@ -1142,6 +2174,28 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       await sendAdminMgmtPanel(ctx, env, lang);
       return true;
     }
+    if (matchAnyLang(text, "btn_ai_assistant")) {
+      if (!can("ai")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
+      if (!(await isAiMasterEnabled(env))) {
+        await ctx.reply(t(lang, "ai_disabled_notice"));
+        return true;
+      }
+      await ctx.reply(t(lang, "ai_chat_welcome"), {
+        reply_markup: new InlineKeyboard().text(t(lang, "btn_ai_chat_exit"), "nav:close"),
+      });
+      return true;
+    }
+    if (matchAnyLang(text, "btn_ai_control")) {
+      if (!can("ai")) {
+        await ctx.reply(t(lang, "no_permission"));
+        return true;
+      }
+      await sendAiControlPanel(ctx, env, lang);
+      return true;
+    }
   }
 
   // ---- editing an ad: accepts a photo+caption OR a text-only message ----
@@ -1309,6 +2363,54 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
       const row = await env.DB.prepare("SELECT order_index FROM files WHERE id = ?")
         .bind(res.meta.last_row_id).first<{ order_index: number }>();
       await ctx.reply(t(lang, "file_added_to_archive", { count: row?.order_index ?? 1 }));
+      return true;
+    }
+  }
+
+  // ---- AI assistant fallback: any file or text message not claimed by any
+  // of the flows above (button, active session, or one-shot conversation
+  // state) is handed to the AI assistant — this is what makes "just send it
+  // a message/photo, no special mode needed" work. Skipped entirely while
+  // the admin is mid another flow (e.g. an unfinished upload session, or an
+  // unrecognized/stale conversation state) so the AI never talks over an
+  // in-progress action. ----
+  if (can("ai") && !session && !state) {
+    if (!(await isAiMasterEnabled(env))) {
+      if (text) {
+        await ctx.reply(t(lang, "ai_disabled_notice"));
+        return true;
+      }
+      return false;
+    }
+
+    const file = ctx.message ? detectFile(ctx.message) : null;
+    if (file) {
+      const sessionId = await getOrStartAiContentSession(env, userId);
+      let visionDescription: string | null = null;
+      if (file.file_type === "photo") {
+        const dataUri = await telegramFileToDataUri(env, ctx, file.file_id);
+        if (dataUri) visionDescription = await analyzeImageForAi(env, dataUri);
+      }
+      const position = await addFileToAiContentSession(env, sessionId, file, visionDescription);
+      const base = t(lang, "ai_file_received", { count: position, type: file.file_type });
+      await ctx.reply(visionDescription ? `${base}\n\n👁 ${visionDescription}` : base);
+      return true;
+    }
+
+    if (text) {
+      const thinking = await ctx.reply(t(lang, "ai_thinking"));
+      let reply: string;
+      try {
+        reply = await runAiConversation({ env, ctx, adminId: userId, lang }, text);
+      } catch {
+        reply = t(lang, "ai_error_generic");
+      }
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, thinking.message_id);
+      } catch {
+        /* ignore */
+      }
+      await ctx.reply(reply);
       return true;
     }
   }
@@ -1520,6 +2622,20 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
           /* ignore */
         }
       }
+      return;
+    case "aictrl":
+      if (!can("ai")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
+      await handleAiCtrlCallback(ctx, env, userId, lang, rest);
+      return;
+    case "aiart":
+      if (!can("ai")) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
+      await handleAiProposalCallback(ctx, env, lang, rest);
       return;
     default:
       await ctx.answerCallbackQuery();
@@ -2250,7 +3366,7 @@ async function sendAdminMgmtPanel(ctx: Context, env: Env, lang: Lang) {
   await ctx.reply(t(lang, "admin_mgmt_panel_title"), { reply_markup: kb });
 }
 
-const PERMISSION_KEYS: PermissionKey[] = ["upload", "channels", "archives_manage", "ads", "broadcast", "settings"];
+const PERMISSION_KEYS: PermissionKey[] = ["upload", "channels", "archives_manage", "ads", "broadcast", "settings", "ai"];
 
 async function renderAdminDetail(ctx: Context, env: Env, lang: Lang, targetId: string, edit: boolean) {
   const info = await getAdminInfo(env, parseInt(targetId, 10));
@@ -2694,6 +3810,109 @@ async function handleGroupMessage(ctx: Context, env: Env) {
 }
 
 // =========================================================================
+// AI assistant — publishing a due scheduled post (cron side, no ctx)
+// =========================================================================
+
+/** Sends one AI-created post to its channel, preserving the exact upload
+ *  order and reusing the same album-grouping rules as archive delivery
+ *  (mediaGroupBucket/SEND_METHOD above). Returns the chat id + every
+ *  message id actually sent, so the caller can record them for the
+ *  short self-edit window. */
+async function publishAiScheduledPost(env: Env, bot: Bot, post: AiScheduledPostRow): Promise<{ chatId: string; messageIds: number[] } | null> {
+  const channel = await getChannelById(env, post.channel_id);
+  if (!channel) return null;
+  const chatId = channel.channel_id;
+  const files = post.content_session_id ? await getAiContentSessionFiles(env, post.content_session_id) : [];
+  const messageIds: number[] = [];
+
+  const sendSingle = async (f: AiContentFileRow, captionOverride?: string | null) => {
+    const method = SEND_METHOD[f.file_type];
+    if (!method) return;
+    const caption = captionOverride ?? f.caption ?? undefined;
+    // @ts-ignore - dynamic method dispatch on the Bot API
+    const sent = await bot.api[method](chatId, f.file_id, caption ? { caption } : undefined);
+    messageIds.push(sent.message_id);
+  };
+
+  if (files.length === 0) {
+    if (!post.caption) return null;
+    const sent = await bot.api.sendMessage(chatId, post.caption);
+    messageIds.push(sent.message_id);
+    return { chatId, messageIds };
+  }
+
+  if (files.length === 1) {
+    await sendSingle(files[0], post.caption ?? files[0].caption);
+    return messageIds.length > 0 ? { chatId, messageIds } : null;
+  }
+
+  // 2+ files: same visual/filey/single bucketing as archive delivery, so the
+  // admin's original ordering and album grouping is always preserved.
+  let batch: AiContentFileRow[] = [];
+  let batchBucket: "visual" | "filey" | null = null;
+  let captionUsed = false;
+
+  const flush = async () => {
+    if (batch.length === 0) return;
+    if (batch.length === 1) {
+      await sendSingle(batch[0], !captionUsed ? post.caption ?? batch[0].caption : batch[0].caption);
+      captionUsed = true;
+      batch = [];
+      return;
+    }
+    const media = batch.map((f) => {
+      const caption = !captionUsed ? post.caption ?? f.caption ?? undefined : f.caption ?? undefined;
+      if (!captionUsed) captionUsed = true;
+      return { type: f.file_type, media: f.file_id, caption };
+    });
+    try {
+      // @ts-ignore - grammy's InputMedia union is stricter than our dynamic file_type
+      const sentMessages = await bot.api.sendMediaGroup(chatId, media);
+      for (const sm of sentMessages) messageIds.push(sm.message_id);
+    } catch {
+      for (const f of batch) await sendSingle(f);
+    }
+    batch = [];
+  };
+
+  for (const f of files) {
+    const bucket = mediaGroupBucket(f.file_type);
+    if (bucket === "single") {
+      await flush();
+      await sendSingle(f, !captionUsed ? post.caption ?? f.caption : f.caption);
+      captionUsed = true;
+      continue;
+    }
+    if (batchBucket !== null && (batchBucket !== bucket || batch.length >= 10)) await flush();
+    batchBucket = bucket;
+    batch.push(f);
+  }
+  await flush();
+
+  return messageIds.length > 0 ? { chatId, messageIds } : null;
+}
+
+/** Cron entry point for AI posts — mirrors runDueDeletions. Does nothing at
+ *  all while the master switch or the auto-post switch is off, and never
+ *  touches anything except posts the admin already confirmed. */
+async function runDueAiPosts(env: Env, bot: Bot): Promise<void> {
+  if (!(await isAiMasterEnabled(env))) return;
+  if (!(await isAiAutopostEnabled(env))) return;
+
+  const due = await findDueAiScheduledPosts(env);
+  for (const post of due) {
+    try {
+      const result = await publishAiScheduledPost(env, bot, post);
+      if (!result) continue;
+      await afterAiPostPublished(env, post, result.chatId, result.messageIds);
+      await logAiActivity(env, "post_published", `post #${post.id} published`, post.channel_id);
+    } catch {
+      // one failing post must never block the rest of the due queue
+    }
+  }
+}
+
+// =========================================================================
 // Worker entrypoint
 // =========================================================================
 
@@ -2706,5 +3925,6 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const bot = buildBot(env);
     ctx.waitUntil(runDueDeletions(env, bot));
+    ctx.waitUntil(runDueAiPosts(env, bot));
   },
 };

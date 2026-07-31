@@ -13,6 +13,9 @@
     "BOT_USERNAME": "RealSunGenko",
     "ENVIRONMENT": "development"
   },
+  "ai": {
+    "binding": "AI"
+  },
   "triggers": {
     "crons": ["*/1 * * * *"]
   }
