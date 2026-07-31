@@ -61,6 +61,32 @@ const AI_EDIT_WINDOW_MS = 2 * 60 * 1000;
 const AI_CHAT_HISTORY_TURNS = 16;
 const AI_ACTIVITY_PAGE_SIZE = 10;
 const AI_SCHEDULED_PAGE_SIZE = 8;
+// The wake word admins use to summon Shinkou inside a group. Matched
+// case-insensitively, in either script, as a substring — so "Shinkou",
+// "shinkou جان", "@شینکو" etc. all trigger it. This is the ONLY thing that
+// makes Shinkou respond in a group, which is what keeps its free daily
+// Workers AI quota from being burned by ordinary group chatter.
+const AI_WAKE_WORDS = ["shinkou", "شینکو"];
+
+// How much passive group conversation history is kept and how much Shinkou
+// is allowed to pull in one go — capped deliberately, since every extra
+// message costs real tokens against the model's context window.
+const GROUP_LOG_KEEP_PER_CHAT = 300;
+const GROUP_LOG_DEFAULT_READ = 20;
+const GROUP_LOG_MAX_READ = 50;
+const GROUP_LOG_MAX_CHARS_PER_MESSAGE = 250;
+
+function extractWakeWordPrompt(text: string): string | null {
+  const lower = text.toLowerCase();
+  const hit = AI_WAKE_WORDS.find((w) => lower.includes(w));
+  if (!hit) return null;
+  // Strip the first occurrence of the wake word (either script) and hand
+  // the rest to the model as the actual instruction/question.
+  const idx = lower.indexOf(hit);
+  const stripped = (text.slice(0, idx) + text.slice(idx + hit.length)).trim();
+  // Strip common leading punctuation left behind (",", "،", ":" etc.)
+  return stripped.replace(/^[\s,،:\-]+/, "").trim();
+}
 
 // =========================================================================
 // i18n
@@ -1320,6 +1346,55 @@ async function clearAiChatHistory(env: Env, telegramId: number) {
   await env.DB.prepare("DELETE FROM ai_chat_history WHERE telegram_id = ?").bind(String(telegramId)).run();
 }
 
+// ---------- reaction tracking (aggregated counts only, no per-user identity) ----------
+
+async function upsertMessageReactionCounts(env: Env, chatId: string, messageId: number, reactions: { emoji: string; count: number }[]) {
+  await env.DB.prepare(
+    `INSERT INTO ai_message_reactions (chat_id, message_id, reactions_json, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(chat_id, message_id) DO UPDATE SET reactions_json = excluded.reactions_json, updated_at = excluded.updated_at`
+  ).bind(chatId, messageId, JSON.stringify(reactions), now()).run();
+}
+
+async function getMessageReactionsSummary(env: Env, chatId: string, messageId: number): Promise<string | null> {
+  const row = await env.DB.prepare("SELECT reactions_json FROM ai_message_reactions WHERE chat_id = ? AND message_id = ?")
+    .bind(chatId, messageId).first<{ reactions_json: string }>();
+  if (!row) return null;
+  try {
+    const reactions: { emoji: string; count: number }[] = JSON.parse(row.reactions_json);
+    if (reactions.length === 0) return "no reactions yet";
+    return reactions.map((r) => `${r.emoji} ×${r.count}`).join(", ");
+  } catch {
+    return null;
+  }
+}
+
+// ---------- passive group-message log (read-only awareness for Shinkou) ----------
+
+/** Logs one group message from ANYONE (admin or regular user) — purely
+ *  passive, never used to act on/reply to regular users. Pruned to the
+ *  most recent GROUP_LOG_KEEP_PER_CHAT rows per chat so this never grows
+ *  unbounded or gets expensive to read back. */
+async function logGroupMessage(env: Env, chatId: string, messageId: number, senderId: string | null, senderName: string | null, text: string | null) {
+  if (!text) return;
+  await env.DB.prepare(
+    "INSERT INTO group_message_log (chat_id, message_id, sender_id, sender_name, text, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(chatId, messageId, senderId, senderName, text.slice(0, GROUP_LOG_MAX_CHARS_PER_MESSAGE), now()).run();
+  await env.DB.prepare(
+    `DELETE FROM group_message_log WHERE chat_id = ? AND id NOT IN (
+       SELECT id FROM group_message_log WHERE chat_id = ? ORDER BY id DESC LIMIT ?
+     )`
+  ).bind(chatId, chatId, GROUP_LOG_KEEP_PER_CHAT).run();
+}
+
+/** Token-capped read for Shinkou's on-demand "catch me up" tool — hard
+ *  clamped to GROUP_LOG_MAX_READ regardless of what's requested. */
+async function getRecentGroupMessages(env: Env, chatId: string, count: number): Promise<{ senderName: string | null; text: string }[]> {
+  const limit = Math.max(1, Math.min(count, GROUP_LOG_MAX_READ));
+  const res = await env.DB.prepare("SELECT sender_name, text FROM group_message_log WHERE chat_id = ? ORDER BY id DESC LIMIT ?")
+    .bind(chatId, limit).all<{ sender_name: string | null; text: string }>();
+  return (res.results ?? []).reverse().map((r) => ({ senderName: r.sender_name, text: r.text }));
+}
+
 // =========================================================================
 // Keyboards
 // =========================================================================
@@ -1398,6 +1473,22 @@ async function analyzeImageForAi(env: Env, dataUri: string): Promise<string | nu
   } catch {
     return null;
   }
+}
+
+/** If the admin's summon message was a reply to another message, fetch that
+ *  message's text/caption plus any tracked reaction counts on it, so Shinkou
+ *  can answer "what do you think of this?" / "how did it do?" style
+ *  questions without guessing. */
+async function buildQuotedMessageContext(
+  ctx: Context,
+  env: Env,
+  chatId: string
+): Promise<{ text: string; reactionsSummary: string | null } | null> {
+  const replied: any = (ctx.message as any)?.reply_to_message;
+  if (!replied) return null;
+  const text: string = replied.text ?? replied.caption ?? "(non-text content)";
+  const reactionsSummary = await getMessageReactionsSummary(env, chatId, replied.message_id);
+  return { text, reactionsSummary };
 }
 
 async function geocodeCity(city: string): Promise<{ lat: number; lon: number; name: string } | null> {
@@ -1540,14 +1631,80 @@ const AI_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "react",
+      description:
+        "Add an emoji reaction to the message the admin just summoned/spoke to you in. Use this for a quick acknowledgement or reaction instead of (or in addition to) a text reply — e.g. react 👍 to approve something shown to you.",
+      parameters: {
+        type: "object",
+        properties: { emoji: { type: "string", description: "A single emoji, e.g. 👍 ❤️ 😂 🔥 🎉" } },
+        required: ["emoji"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_message_reactions",
+      description: "Get the tracked reaction counts on the message the admin's request was replying to, if any.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_recent_group_messages",
+      description:
+        "Read the most recent messages sent by ANYONE in the current group (not just the admin), to catch up on what's been discussed. Only works when you are currently being talked to inside a group. Capped for token efficiency — only ask for more than the default if you genuinely need a longer window.",
+      parameters: {
+        type: "object",
+        properties: { count: { type: "number", description: "How many recent messages to read, default 20, max 50." } },
+      },
+    },
+  },
 ] as const;
+
+type AiChatContext =
+  | { kind: "private" }
+  | { kind: "group"; chatId: string; title: string | null };
 
 type AiToolCallCtx = {
   env: Env;
   ctx: Context;
   adminId: number;
   lang: Lang;
+  isOwner: boolean; // true only for the super-admin — the actual owner of the bot
+  chatContext: AiChatContext;
+  /** If the summon message was itself a reply to another message, that
+   *  quoted message's text/caption + any tracked reactions — given to the
+   *  model as context so "what do you think of this?" style questions work. */
+  quotedMessage: { text: string; reactionsSummary: string | null } | null;
+  /** The message Shinkou was actually summoned/spoken to in — used by the
+   *  react tool, since "react to what I just said/showed you" always means
+   *  this message unless the admin points at something else. */
+  triggerChatId: string;
+  triggerMessageId: number;
 };
+
+/** Workers AI has been observed returning tool-call arguments both as a
+ *  JSON string and as an already-parsed object, depending on the model —
+ *  calling JSON.parse on an already-parsed object throws, which used to
+ *  crash the whole conversation turn any time a tool was invoked. This
+ *  normalizes both shapes safely. */
+function safeParseToolArgs(raw: unknown): any {
+  if (raw == null) return {};
+  if (typeof raw === "object") return raw;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
 
 async function executeAiTool(tc: AiToolCallCtx, name: string, args: any): Promise<string> {
   const { env, adminId } = tc;
@@ -1638,6 +1795,31 @@ async function executeAiTool(tc: AiToolCallCtx, name: string, args: any): Promis
       return await aiEditRecentPost(env, tc.ctx, adminId, Number(args.post_id), String(args.new_text ?? ""));
     }
 
+    case "react": {
+      const emoji = String(args.emoji ?? "").trim();
+      if (!emoji) return "Error: no emoji given.";
+      try {
+        // @ts-ignore - reaction methods are newer than this project's pinned grammy types
+        await tc.ctx.api.setMessageReaction(tc.triggerChatId, tc.triggerMessageId, [{ type: "emoji", emoji }]);
+        return "Reacted.";
+      } catch {
+        return "Error: could not react with that emoji (Telegram may not support it, or reactions aren't enabled for this chat).";
+      }
+    }
+
+    case "get_message_reactions": {
+      if (!tc.quotedMessage) return "There is no quoted/replied-to message for this request.";
+      return tc.quotedMessage.reactionsSummary ?? "No reactions tracked on that message yet.";
+    }
+
+    case "read_recent_group_messages": {
+      if (tc.chatContext.kind !== "group") return "Error: not currently in a group — there is nothing to read here.";
+      const count = typeof args.count === "number" ? args.count : GROUP_LOG_DEFAULT_READ;
+      const msgs = await getRecentGroupMessages(env, tc.chatContext.chatId, count);
+      if (msgs.length === 0) return "No recent group messages logged yet.";
+      return msgs.map((m) => `${m.senderName ?? "?"}: ${m.text}`).join("\n");
+    }
+
     default:
       return `Error: unknown tool "${name}".`;
   }
@@ -1707,12 +1889,36 @@ async function runAiConversation(tc: AiToolCallCtx, userMessageContent: any): Pr
   const { env, adminId } = tc;
   const memory = await getAllAiMemory(env);
   const history = await getAiChatHistory(env, adminId);
+  const channels = await getAllChannels(env);
 
-  const systemPrompt =
-    `You are the professional Telegram-channel admin assistant for this bot. You act carefully and deliberately — you never publish or schedule anything without content, and you always double-check your own understanding before proposing a post.\n` +
-    `Reply to the admin in the same language they use (Persian by default).\n` +
-    `Rules the admin has taught you about this channel (always follow these):\n` +
-    (memory.length > 0 ? memory.map((m) => `- ${m.rule_text}`).join("\n") : "(none yet)");
+  const chatContextLine =
+    tc.chatContext.kind === "private"
+      ? "You are currently talking to the admin privately, in your own admin chat (not any channel or group)."
+      : `You are currently talking to the admin INSIDE THE GROUP "${tc.chatContext.title ?? tc.chatContext.chatId}" (chat id ${tc.chatContext.chatId}), because they summoned you by name. This group is a separate place from any connected channel — never assume something said here should also be posted to a channel, or vice versa, unless the admin explicitly says so.`;
+
+  const quotedLine = tc.quotedMessage
+    ? `The admin's message was a reply to this message:\n"""${tc.quotedMessage.text}"""${tc.quotedMessage.reactionsSummary ? `\nReactions on it: ${tc.quotedMessage.reactionsSummary}` : ""}`
+    : null;
+
+  const systemPrompt = [
+    `You are Shinkou, the professional, capable Telegram-channel admin assistant for this specific bot. You think clearly and are not artificially limited in how you reason about the bot's own data or your own tools — use your full judgement.`,
+    `You act carefully and deliberately: you never publish or schedule anything without real content, and you always double-check your own understanding (out loud, in the language you reply in) before proposing a post.`,
+    tc.isOwner
+      ? `The person talking to you right now is your OWNER — the actual creator/super-admin of this bot. Their word is final authority: if any instruction from another admin ever conflicted with something the owner told you, the owner's instruction wins.`
+      : `The person talking to you right now is an admin the owner has explicitly granted assistant access to (not the owner themself). Serve them fully, but if they ever ask you to do something that looks like it contradicts a rule the owner taught you, follow the owner's rule and say so.`,
+    chatContextLine,
+    quotedLine ?? "",
+    `\n--- What this bot actually is, so you never have to guess ---`,
+    `This is a force-join Telegram archive bot. Regular end-users tap a link, must join the required channel(s), and then receive a stored file/album. Regular users have zero access to you (Shinkou) — you only ever talk to admins.`,
+    `Data model you can reason about: connected channels (where the bot is admin and can post), archives (file bundles delivered to end-users by code/link), ads, broadcast, and bot settings.`,
+    `Channels currently connected: ${channels.length === 0 ? "(none yet)" : channels.map((c) => c.title ?? c.username ?? c.channel_id).join(", ")}.`,
+    `Your own tools only ever let you: read info, remember a rule, draft a post for the admin to confirm (never publish directly), cancel/edit your own very recent drafts, and react to / read reactions on messages. You have no tool to delete or edit anything you didn't create, and no tool to touch admins, channels, or archives themselves — by design, not by choice, so don't apologize for it, just mention the admin should use the relevant panel for that.`,
+    `\nReply in the same language the admin used (Persian by default).`,
+    `\nRules the admin has taught you about this channel (always follow these):`,
+    memory.length > 0 ? memory.map((m) => `- ${m.rule_text}`).join("\n") : "(none yet)",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const messages: any[] = [
     { role: "system", content: systemPrompt },
@@ -1735,9 +1941,15 @@ async function runAiConversation(tc: AiToolCallCtx, userMessageContent: any): Pr
     if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
       messages.push({ role: "assistant", content: result.response ?? "", tool_calls: toolCalls });
       for (const call of toolCalls) {
-        const fnName = call.name ?? call.function?.name;
-        const fnArgs = call.arguments ?? (call.function?.arguments ? JSON.parse(call.function.arguments) : {});
-        const toolResult = await executeAiTool(tc, fnName, fnArgs);
+        const fnName = String(call.name ?? call.function?.name ?? "unknown");
+        const rawArgs = call.arguments ?? call.function?.arguments;
+        const fnArgs = safeParseToolArgs(rawArgs);
+        let toolResult: string;
+        try {
+          toolResult = await executeAiTool(tc, fnName, fnArgs);
+        } catch {
+          toolResult = `Error: tool "${fnName}" failed unexpectedly.`;
+        }
         messages.push({ role: "tool", content: toolResult, name: fnName });
       }
       continue;
@@ -2044,6 +2256,21 @@ function buildBot(env: Env): Bot {
     }
   });
 
+  // ----- aggregated reaction counts (anonymous — no per-user identity) -----
+  bot.on("message_reaction_count", async (ctx) => {
+    try {
+      const upd: any = (ctx as any).messageReactionCount ?? (ctx.update as any).message_reaction_count;
+      if (!upd) return;
+      const reactions = (upd.reactions ?? []).map((r: any) => ({
+        emoji: r.type?.emoji ?? r.type?.custom_emoji_id ?? "?",
+        count: r.total_count ?? 0,
+      }));
+      await upsertMessageReactionCounts(env, String(upd.chat.id), upd.message_id, reactions);
+    } catch {
+      /* best-effort only — never let this break the bot */
+    }
+  });
+
   // ----- messages -----
   bot.on("message", async (ctx) => {
     const userId = ctx.from?.id;
@@ -2052,7 +2279,10 @@ function buildBot(env: Env): Bot {
 
     if (chatType === "group" || chatType === "supergroup") {
       const admin = await isAdmin(env, userId);
-      if (admin) return; // admins are exempt from the group force-join gate
+      if (admin) {
+        await handleGroupAdminMessage(ctx, env, userId);
+        return; // admins are always exempt from the group force-join gate
+      }
       await handleGroupMessage(ctx, env);
       return;
     }
@@ -2399,9 +2629,24 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
 
     if (text) {
       const thinking = await ctx.reply(t(lang, "ai_thinking"));
+      const chatIdStr = String(ctx.chat!.id);
+      const quotedMessage = await buildQuotedMessageContext(ctx, env, chatIdStr);
       let reply: string;
       try {
-        reply = await runAiConversation({ env, ctx, adminId: userId, lang }, text);
+        reply = await runAiConversation(
+          {
+            env,
+            ctx,
+            adminId: userId,
+            lang,
+            isOwner: adminInfo.isSuper,
+            chatContext: { kind: "private" },
+            quotedMessage,
+            triggerChatId: chatIdStr,
+            triggerMessageId: ctx.message!.message_id,
+          },
+          text
+        );
       } catch {
         reply = t(lang, "ai_error_generic");
       }
@@ -3764,10 +4009,85 @@ async function sendArchiveFiles(ctx: Context, env: Env, userId: number, archive:
   await logEvent(env, "archive_delivered", userId, archive.code);
 }
 
+/** Handles a message from an admin inside a group. Does absolutely nothing
+ *  (costs zero AI quota) unless the message actually contains the "Shinkou"
+ *  wake word and that admin has the "ai" permission and the master switch
+ *  is on — this is what keeps ordinary group chatter from burning the
+ *  free daily Workers AI quota. */
+async function handleGroupAdminMessage(ctx: Context, env: Env, userId: number) {
+  const text = ctx.message?.text ?? ctx.message?.caption;
+
+  // Passive awareness log — happens regardless of whether Shinkou is being
+  // summoned right now, so a later "catch me up" request sees everything.
+  if (text && ctx.chat) {
+    const from = ctx.from;
+    const senderName = `${from?.first_name ?? ""} ${from?.last_name ?? ""}`.trim() || from?.username || null;
+    await logGroupMessage(env, String(ctx.chat.id), ctx.message!.message_id, String(userId), senderName, text);
+  }
+
+  if (!text) return;
+  const prompt = extractWakeWordPrompt(text);
+  if (prompt === null) return; // wake word not present — stay silent, costs nothing
+
+  const adminInfo = await getAdminInfo(env, userId);
+  if (!adminInfo || !(adminInfo.isSuper || adminInfo.permissions.ai)) return;
+  if (!(await isAiMasterEnabled(env))) return;
+  if (!prompt) return; // wake word alone, no actual instruction — ignore rather than guess
+
+  const chat = ctx.chat!;
+  const chatIdStr = String(chat.id);
+  const lang = await getUserLang(env, userId);
+
+  // Best-effort acknowledgement react — failing silently is fine, since
+  // reactions require the bot's webhook to actually subscribe to them.
+  try {
+    // @ts-ignore - reaction methods are newer than this project's pinned grammy types
+    await ctx.api.setMessageReaction(chat.id, ctx.message!.message_id, [{ type: "emoji", emoji: "👀" }]);
+  } catch {
+    /* ignore */
+  }
+
+  const quotedMessage = await buildQuotedMessageContext(ctx, env, chatIdStr);
+
+  let reply: string;
+  try {
+    reply = await runAiConversation(
+      {
+        env,
+        ctx,
+        adminId: userId,
+        lang,
+        isOwner: adminInfo.isSuper,
+        chatContext: { kind: "group", chatId: chatIdStr, title: (chat as any).title ?? null },
+        quotedMessage,
+        triggerChatId: chatIdStr,
+        triggerMessageId: ctx.message!.message_id,
+      },
+      prompt
+    );
+  } catch {
+    reply = t(lang, "ai_error_generic");
+  }
+
+  try {
+    await ctx.reply(reply, { reply_parameters: { message_id: ctx.message!.message_id } });
+  } catch {
+    await ctx.reply(reply);
+  }
+}
+
 async function handleGroupMessage(ctx: Context, env: Env) {
   const userId = ctx.from?.id;
   const chat = ctx.chat;
   if (!userId || !chat) return;
+
+  // Passive awareness log — read-only, never used to act on regular users.
+  const text = (ctx.message as any)?.text ?? (ctx.message as any)?.caption ?? null;
+  if (text) {
+    const from = ctx.from;
+    const senderName = `${from?.first_name ?? ""} ${from?.last_name ?? ""}`.trim() || from?.username || null;
+    await logGroupMessage(env, String(chat.id), ctx.message!.message_id, String(userId), senderName, text);
+  }
 
   const channels = await getAllChannels(env);
   if (channels.length === 0) return; // nothing configured — don't restrict groups
