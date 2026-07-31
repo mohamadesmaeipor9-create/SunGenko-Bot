@@ -1348,21 +1348,47 @@ async function clearAiChatHistory(env: Env, telegramId: number) {
 
 // ---------- reaction tracking (aggregated counts only, no per-user identity) ----------
 
+// Hard cap so this table never grows unbounded — only the most recently
+// reacted-to messages per chat are kept; anything older just falls off.
+const AI_REACTIONS_KEEP_PER_CHAT = 200;
+
+// Standard Telegram "thumbs down"-style reactions treated as negative.
+// Everything else Shinkou tracks is treated as positive/neutral — this is
+// deliberately simple (like vs dislike), not a full sentiment model.
+const NEGATIVE_REACTION_EMOJIS = new Set(["👎", "💩", "🤮", "🤬", "😡", "💔", "😢", "😭"]);
+
 async function upsertMessageReactionCounts(env: Env, chatId: string, messageId: number, reactions: { emoji: string; count: number }[]) {
   await env.DB.prepare(
     `INSERT INTO ai_message_reactions (chat_id, message_id, reactions_json, updated_at) VALUES (?, ?, ?, ?)
      ON CONFLICT(chat_id, message_id) DO UPDATE SET reactions_json = excluded.reactions_json, updated_at = excluded.updated_at`
   ).bind(chatId, messageId, JSON.stringify(reactions), now()).run();
+  // Prune to the cap right away so this table can never grow unbounded.
+  await env.DB.prepare(
+    `DELETE FROM ai_message_reactions WHERE chat_id = ? AND rowid NOT IN (
+       SELECT rowid FROM ai_message_reactions WHERE chat_id = ? ORDER BY updated_at DESC LIMIT ?
+     )`
+  ).bind(chatId, chatId, AI_REACTIONS_KEEP_PER_CHAT).run();
 }
 
+/** Turns raw per-emoji counts into a simple, decisive like-vs-dislike
+ *  read — this is what makes "was it a like or a dislike?" answerable
+ *  instead of just handing back a pile of emoji counts. */
 async function getMessageReactionsSummary(env: Env, chatId: string, messageId: number): Promise<string | null> {
   const row = await env.DB.prepare("SELECT reactions_json FROM ai_message_reactions WHERE chat_id = ? AND message_id = ?")
     .bind(chatId, messageId).first<{ reactions_json: string }>();
   if (!row) return null;
   try {
     const reactions: { emoji: string; count: number }[] = JSON.parse(row.reactions_json);
-    if (reactions.length === 0) return "no reactions yet";
-    return reactions.map((r) => `${r.emoji} ×${r.count}`).join(", ");
+    if (reactions.length === 0) return "No reactions yet.";
+    let likes = 0;
+    let dislikes = 0;
+    for (const r of reactions) {
+      if (NEGATIVE_REACTION_EMOJIS.has(r.emoji)) dislikes += r.count;
+      else likes += r.count;
+    }
+    const verdict = likes === 0 && dislikes === 0 ? "no clear reaction" : likes >= dislikes ? "overall LIKED" : "overall DISLIKED";
+    const detail = reactions.map((r) => `${r.emoji}×${r.count}`).join(", ");
+    return `${verdict} — ${likes} like(s), ${dislikes} dislike(s) (breakdown: ${detail}).`;
   } catch {
     return null;
   }
