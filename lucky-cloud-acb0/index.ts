@@ -66,6 +66,21 @@ const AI_SCHEDULED_PAGE_SIZE = 8;
 // "shinkou جان", "@شینکو" etc. all trigger it. This is the ONLY thing that
 // makes Shinkou respond in a group, which is what keeps its free daily
 // Workers AI quota from being burned by ordinary group chatter.
+// Kept up to date by whoever maintains this code — every time a real
+// capability is added/changed, add a line here so Shinkou always knows
+// what it currently can do, instead of describing an outdated version of
+// itself. Newest first.
+const SHINKOU_CHANGELOG = [
+  "Now has a personal sticker/GIF library it builds itself and can send from, whenever it judges one fits (send_sticker/send_gif tools).",
+  "Can now be addressed in a group by replying directly to one of its own messages, not just by saying its wake word.",
+  "Can now actually see profile pictures (users, channels, or its own) via vision, not just read text bio/username.",
+  "Passive group-message logging now covers every member (not just admins), at zero AI-token cost, for any approved group.",
+  "Can look up its own Telegram profile, any user's profile, and any connected channel's profile (bio/description/member count).",
+  "Has a real live web-search tool for current events / anything that may be outdated in its training.",
+  "Can see and reason about images directly inside a live conversation (not just a cached caption) in both private chat and groups.",
+  "Learns curated, capped facts about specific people over time, so it doesn't need re-introductions.",
+];
+
 const AI_WAKE_WORDS = ["shinkou", "شینکو"];
 
 // How much passive group conversation history is kept and how much Shinkou
@@ -274,6 +289,16 @@ const T = {
     // AI assistant
     btn_ai_assistant: "🤖 دستیار هوشمند",
     btn_ai_control: "🎛 کنترل و مدیریت AI",
+    btn_group_mgmt: "🗂 مدیریت گروه‌ها",
+    group_mgmt_title: "🗂 مدیریت گروه‌ها",
+    group_mgmt_intro: "این لیست گروه‌هایی هست که ربات توشونه. فقط گروه‌های «تأیید شده» هم از جوین اجباری معافن، هم شینکو توشون فعاله.",
+    group_mgmt_empty: "ربات هنوز به هیچ گروهی اضافه نشده.",
+    group_status_pending: "⏳ در انتظار تأیید",
+    group_status_approved: "✅ تأیید شده",
+    group_status_blocked: "⛔ مسدود",
+    btn_group_approve: "✅ تأیید کن",
+    btn_group_block: "⛔ مسدود کن",
+    group_status_changed_ok: "وضعیت گروه بروزرسانی شد.",
     ai_disabled_notice: "🚫 دستیار هوشمند در حال حاضر توسط ادمین کل خاموش است.",
     ai_chat_welcome:
       "🤖 با دستیار هوشمند در گفتگو هستید.\n\nمی‌تونید ازش سوال بپرسید (آب‌وهوا، تاریخ و ...)، قوانین ساختار پست‌هاتون رو بهش یاد بدید، یا فایل/عکس بفرستید و بگید باهاش چیکار کنه.\nهیچ پستی بدون تأیید نهایی خودتون منتشر نمی‌شه.\n\nبرای خروج از این حالت، دکمه‌ی زیر رو بزنید.",
@@ -305,6 +330,12 @@ const T = {
     btn_ai_scheduled_list: "📋 پست‌های زمان‌بندی‌شده",
     btn_ai_activity_log: "📜 گزارش فعالیت‌ها",
     btn_ai_memory: "🧠 قوانین آموزش‌داده‌شده",
+    btn_ai_people_memory: "👤 حافظه‌ی افراد",
+    ai_people_memory_empty: "هنوز چیزی درباره‌ی هیچ‌کس یاد نگرفته.",
+    ai_people_memory_title: "👤 افرادی که شینکو می‌شناسه:",
+    ai_person_facts_title: "درباره‌ی {name}:",
+    btn_clear_person: "🗑 پاک کردن حافظه‌ی این فرد",
+    ai_person_cleared_ok: "حافظه‌ی این فرد پاک شد.",
     ai_master_toggled: "✅ وضعیت کلی دستیار تغییر کرد.",
     ai_autopost_toggled: "✅ وضعیت پست‌گذاری خودکار تغییر کرد.",
     ai_no_scheduled: "هیچ پست زمان‌بندی‌شده‌ی فعالی وجود ندارد.",
@@ -492,6 +523,16 @@ const T = {
     // AI assistant
     btn_ai_assistant: "🤖 AI Assistant",
     btn_ai_control: "🎛 AI Control & Management",
+    btn_group_mgmt: "🗂 Group Management",
+    group_mgmt_title: "🗂 Group Management",
+    group_mgmt_intro: "Groups the bot is currently in. Only 'approved' groups are exempt from force-join AND have Shinkou active.",
+    group_mgmt_empty: "The bot hasn't been added to any group yet.",
+    group_status_pending: "⏳ Pending approval",
+    group_status_approved: "✅ Approved",
+    group_status_blocked: "⛔ Blocked",
+    btn_group_approve: "✅ Approve",
+    btn_group_block: "⛔ Block",
+    group_status_changed_ok: "Group status updated.",
     ai_disabled_notice: "🚫 The AI assistant is currently turned off by the super-admin.",
     ai_chat_welcome:
       "🤖 You're chatting with the AI assistant.\n\nAsk it things (weather, date, etc.), teach it your post-structure rules, or send a file/photo and tell it what to do with it.\nNo post is ever published without your final confirmation.\n\nTap the button below to exit this mode.",
@@ -523,6 +564,12 @@ const T = {
     btn_ai_scheduled_list: "📋 Scheduled Posts",
     btn_ai_activity_log: "📜 Activity Log",
     btn_ai_memory: "🧠 Taught Rules",
+    btn_ai_people_memory: "👤 People Memory",
+    ai_people_memory_empty: "Nothing learned about anyone yet.",
+    ai_people_memory_title: "👤 People Shinkou knows:",
+    ai_person_facts_title: "About {name}:",
+    btn_clear_person: "🗑 Clear this person's memory",
+    ai_person_cleared_ok: "That person's memory was cleared.",
     ai_master_toggled: "✅ Assistant master state changed.",
     ai_autopost_toggled: "✅ Auto-posting state changed.",
     ai_no_scheduled: "No active scheduled posts.",
@@ -1175,6 +1222,89 @@ async function clearAllAiMemory(env: Env) {
   await env.DB.prepare("DELETE FROM ai_memory").run();
 }
 
+// ---------- person memory (curated facts about specific people, capped) ----------
+
+const AI_PERSON_MEMORY_MAX_FACTS_PER_PERSON = 5;
+const AI_PERSON_MEMORY_MAX_TOTAL = 500;
+
+/** Saves one curated fact about a person, keyed by their stable Telegram
+ *  id when known (falls back to their name text if not). Kept small on
+ *  purpose — oldest facts for that person are dropped once the per-person
+ *  cap is hit, and the table overall is capped too, so this behaves like a
+ *  curated memory, not a chat transcript. */
+async function savePersonFact(env: Env, personKey: string, displayName: string | null, factText: string) {
+  await env.DB.prepare("INSERT INTO ai_person_memory (person_key, display_name, fact_text, created_at) VALUES (?, ?, ?, ?)")
+    .bind(personKey, displayName, factText, now()).run();
+  await env.DB.prepare(
+    `DELETE FROM ai_person_memory WHERE person_key = ? AND id NOT IN (
+       SELECT id FROM ai_person_memory WHERE person_key = ? ORDER BY id DESC LIMIT ?
+     )`
+  ).bind(personKey, personKey, AI_PERSON_MEMORY_MAX_FACTS_PER_PERSON).run();
+  await env.DB.prepare(
+    `DELETE FROM ai_person_memory WHERE id NOT IN (SELECT id FROM ai_person_memory ORDER BY id DESC LIMIT ?)`
+  ).bind(AI_PERSON_MEMORY_MAX_TOTAL).run();
+}
+
+async function getPersonFactsByKey(env: Env, personKey: string): Promise<string[]> {
+  const res = await env.DB.prepare("SELECT fact_text FROM ai_person_memory WHERE person_key = ? ORDER BY id ASC")
+    .bind(personKey).all<{ fact_text: string }>();
+  return (res.results ?? []).map((r) => r.fact_text);
+}
+
+/** Best-effort lookup by display name, for "what do you know about X"
+ *  when X isn't the current speaker (so we don't have their id handy). */
+async function getPersonFactsByName(env: Env, name: string): Promise<{ personKey: string; facts: string[] } | null> {
+  const row = await env.DB.prepare("SELECT DISTINCT person_key FROM ai_person_memory WHERE display_name = ? ORDER BY id DESC LIMIT 1")
+    .bind(name).first<{ person_key: string }>();
+  if (!row) return null;
+  return { personKey: row.person_key, facts: await getPersonFactsByKey(env, row.person_key) };
+}
+
+/** Resolves a free-text name to a Telegram user id by checking the recent
+ *  passive group log for a matching sender name in that chat — lets
+ *  "remember X" tools work by name even though Telegram identity is by id. */
+async function resolvePersonIdByName(env: Env, chatId: string, name: string): Promise<string | null> {
+  const row = await env.DB.prepare("SELECT sender_id FROM group_message_log WHERE chat_id = ? AND sender_name = ? ORDER BY id DESC LIMIT 1")
+    .bind(chatId, name).first<{ sender_id: string | null }>();
+  return row?.sender_id ?? null;
+}
+
+async function listKnownPeople(env: Env): Promise<{ person_key: string; display_name: string | null; fact_count: number }[]> {
+  const res = await env.DB.prepare(
+    "SELECT person_key, MAX(display_name) as display_name, COUNT(*) as fact_count FROM ai_person_memory GROUP BY person_key ORDER BY MAX(id) DESC"
+  ).all<{ person_key: string; display_name: string | null; fact_count: number }>();
+  return res.results ?? [];
+}
+async function clearPersonMemory(env: Env, personKey: string) {
+  await env.DB.prepare("DELETE FROM ai_person_memory WHERE person_key = ?").bind(personKey).run();
+}
+
+// ---------- bot group authorization (which groups Shinkou may operate in) ----------
+
+type BotGroupStatus = "pending" | "approved" | "blocked";
+
+async function upsertBotGroup(env: Env, chatId: string, title: string | null) {
+  await env.DB.prepare(
+    `INSERT INTO bot_groups (chat_id, title, status, added_at, updated_at) VALUES (?, ?, 'pending', ?, ?)
+     ON CONFLICT(chat_id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at`
+  ).bind(chatId, title, now(), now()).run();
+}
+async function deleteBotGroup(env: Env, chatId: string) {
+  await env.DB.prepare("DELETE FROM bot_groups WHERE chat_id = ?").bind(chatId).run();
+}
+async function getBotGroupStatus(env: Env, chatId: string): Promise<BotGroupStatus | null> {
+  const row = await env.DB.prepare("SELECT status FROM bot_groups WHERE chat_id = ?").bind(chatId).first<{ status: BotGroupStatus }>();
+  return row?.status ?? null;
+}
+async function setBotGroupStatus(env: Env, chatId: string, status: BotGroupStatus) {
+  await env.DB.prepare("UPDATE bot_groups SET status = ?, updated_at = ? WHERE chat_id = ?").bind(status, now(), chatId).run();
+}
+async function listBotGroups(env: Env): Promise<{ chat_id: string; title: string | null; status: BotGroupStatus }[]> {
+  const res = await env.DB.prepare("SELECT chat_id, title, status FROM bot_groups ORDER BY updated_at DESC")
+    .all<{ chat_id: string; title: string | null; status: BotGroupStatus }>();
+  return res.results ?? [];
+}
+
 // ---------- content staging session ----------
 
 async function getActiveAiContentSession(env: Env, adminId: number): Promise<{ id: number } | null> {
@@ -1346,6 +1476,76 @@ async function clearAiChatHistory(env: Env, telegramId: number) {
   await env.DB.prepare("DELETE FROM ai_chat_history WHERE telegram_id = ?").bind(String(telegramId)).run();
 }
 
+// ---------- personal sticker/GIF library, tagged by "vibe" ----------
+
+const AI_MEDIA_LIBRARY_CAP = 300;
+
+async function saveMediaToLibrary(env: Env, mediaType: "sticker" | "gif", fileId: string, vibeTag: string) {
+  await env.DB.prepare("INSERT INTO ai_media_library (media_type, file_id, vibe_tag, created_at) VALUES (?, ?, ?, ?)")
+    .bind(mediaType, fileId, vibeTag, now()).run();
+  await env.DB.prepare(
+    `DELETE FROM ai_media_library WHERE id NOT IN (SELECT id FROM ai_media_library ORDER BY id DESC LIMIT ?)`
+  ).bind(AI_MEDIA_LIBRARY_CAP).run();
+}
+
+/** Best-effort match: looks for the vibe as a substring of a stored tag (or
+ *  vice versa); if nothing matches, falls back to any stored item of that
+ *  type so Shinkou can still use *something* fitting-ish rather than never
+ *  using its library at all. Returns null only if the library is empty. */
+async function findMediaByVibe(env: Env, mediaType: "sticker" | "gif", vibe: string): Promise<string | null> {
+  const needle = vibe.toLowerCase().trim();
+  const res = await env.DB.prepare("SELECT file_id, vibe_tag FROM ai_media_library WHERE media_type = ? ORDER BY id DESC LIMIT 100")
+    .bind(mediaType).all<{ file_id: string; vibe_tag: string }>();
+  const rows = res.results ?? [];
+  if (rows.length === 0) return null;
+  if (needle) {
+    const match = rows.find((r) => r.vibe_tag.toLowerCase().includes(needle) || needle.includes(r.vibe_tag.toLowerCase()));
+    if (match) return match.file_id;
+  }
+  return rows[Math.floor(Math.random() * rows.length)].file_id;
+}
+
+/** Reads the "vibe" of an incoming sticker/GIF and stores it for reuse.
+ *  Stickers carry their own emoji (a decent vibe signal on their own);
+ *  static stickers additionally get a real vision read. GIFs get a vision
+ *  read of their thumbnail (the actual animation can't be fed to the
+ *  vision model, but the thumbnail is a solid proxy). Every step is
+ *  best-effort — failures just fall back to a plainer tag. */
+async function learnMediaVibe(env: Env, ctx: Context, sticker: any, animation: any): Promise<string> {
+  if (sticker) {
+    let vibe = sticker.emoji ? `feels like ${sticker.emoji}` : "unclear vibe";
+    if (!sticker.is_animated && !sticker.is_video) {
+      try {
+        const dataUri = await telegramFileToDataUri(env, ctx, sticker.file_id);
+        if (dataUri) {
+          const desc = await analyzeImageForAi(env, dataUri);
+          if (desc) vibe = `${vibe} — ${desc}`;
+        }
+      } catch {
+        /* keep the emoji-only vibe */
+      }
+    }
+    await saveMediaToLibrary(env, "sticker", sticker.file_id, vibe).catch(() => {});
+    return vibe;
+  }
+
+  let vibe = "unclear vibe";
+  const thumbFileId = animation?.thumbnail?.file_id ?? animation?.thumb?.file_id;
+  if (thumbFileId) {
+    try {
+      const dataUri = await telegramFileToDataUri(env, ctx, thumbFileId);
+      if (dataUri) {
+        const desc = await analyzeImageForAi(env, dataUri);
+        if (desc) vibe = desc;
+      }
+    } catch {
+      /* keep the generic vibe */
+    }
+  }
+  await saveMediaToLibrary(env, "gif", animation.file_id, vibe).catch(() => {});
+  return vibe;
+}
+
 // ---------- reaction tracking (aggregated counts only, no per-user identity) ----------
 
 // Hard cap so this table never grows unbounded — only the most recently
@@ -1442,6 +1642,7 @@ function mainReplyKeyboard(lang: Lang, info: AdminInfo): Keyboard {
   if (info.isSuper || perms.broadcast) kb.text(t(lang, "btn_broadcast")).row();
   if (info.isSuper || perms.ads) kb.text(t(lang, "btn_ads")).row();
   if (info.isSuper || perms.ai) kb.text(t(lang, "btn_ai_assistant")).text(t(lang, "btn_ai_control")).row();
+  if (info.isSuper) kb.text(t(lang, "btn_group_mgmt")).row();
 
   kb.text(t(lang, "btn_settings")).row();
   if (info.isSuper) kb.text(t(lang, "btn_admin_mgmt")).row();
@@ -1459,6 +1660,21 @@ function matchAnyLang(text: string, key: TKey): boolean {
 
 /** Downloads a Telegram file and returns it as a base64 data URI, so it can
  *  be handed directly to the vision model. */
+/** Fetches and visually describes a chat's (user, channel, or bot's own)
+ *  profile picture — this is what makes "look at this group's profile
+ *  picture" actually work, instead of only returning text metadata. */
+async function describeChatProfilePhoto(env: Env, ctx: Context, chat: any): Promise<string | null> {
+  const fileId = chat?.photo?.big_file_id ?? chat?.photo?.small_file_id;
+  if (!fileId) return null;
+  try {
+    const dataUri = await telegramFileToDataUri(env, ctx, fileId);
+    if (!dataUri) return null;
+    return await analyzeImageForAi(env, dataUri);
+  } catch {
+    return null;
+  }
+}
+
 async function telegramFileToDataUri(env: Env, ctx: Context, fileId: string): Promise<string | null> {
   try {
     const file = await ctx.api.getFile(fileId);
@@ -1527,6 +1743,42 @@ async function geocodeCity(city: string): Promise<{ lat: number; lon: number; na
     return { lat: first.latitude, lon: first.longitude, name: first.name };
   } catch {
     return null;
+  }
+}
+
+/** The only "post history" Shinkou can honestly know — Telegram's Bot API
+ *  has no way for a bot to browse a channel's full historical posts, only
+ *  what it published/scheduled itself. */
+async function listRecentAiPosts(env: Env, count: number): Promise<{ id: number; status: string; caption: string | null; last_posted_at: number | null }[]> {
+  const res = await env.DB.prepare(
+    "SELECT id, status, caption, last_posted_at FROM ai_scheduled_posts WHERE last_posted_at IS NOT NULL OR status = 'active' ORDER BY COALESCE(last_posted_at, next_run_at) DESC LIMIT ?"
+  ).bind(count).all<{ id: number; status: string; caption: string | null; last_posted_at: number | null }>();
+  return res.results ?? [];
+}
+
+/** Free, keyless live web search via DuckDuckGo's HTML results, trimmed to
+ *  a short, plain-text digest. No API key needed, but this scrapes a public
+ *  results page rather than calling a stable API, so treat failures as
+ *  routine (network hiccup / markup change) rather than alarming. */
+async function performWebSearch(query: string): Promise<string> {
+  try {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ShinkouBot/1.0)" },
+    });
+    if (!res.ok) return "Web search failed (network error) — answer from what you already know, and say the info might not be current.";
+    const html = await res.text();
+    const stripTags = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+    const titleMatches = [...html.matchAll(/<a[^>]*class="result__a"[^>]*>(.*?)<\/a>/gs)].slice(0, 5);
+    const snippetMatches = [...html.matchAll(/<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gs)].slice(0, 5);
+    if (titleMatches.length === 0) return "No web search results found for that query.";
+    const lines = titleMatches.map((m, i) => {
+      const title = stripTags(m[1]);
+      const snippet = snippetMatches[i] ? stripTags(snippetMatches[i][1]) : "";
+      return `- ${title}${snippet ? `: ${snippet}` : ""}`;
+    });
+    return lines.join("\n");
+  } catch {
+    return "Web search failed — answer from what you already know, and say the info might not be current.";
   }
 }
 
@@ -1690,6 +1942,111 @@ const AI_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "remember_person_fact",
+      description:
+        "Save one durable, worth-remembering fact about a specific person (their role, a preference, context you shouldn't have to be told twice) so you recognize them next time without re-introduction. Only for real lasting facts, not idle chatter. Leave person blank to mean the person talking to you right now.",
+      parameters: {
+        type: "object",
+        properties: {
+          person: { type: "string", description: "The person's name, or empty/omitted for whoever is currently talking to you." },
+          fact: { type: "string", description: "The specific fact to remember, written concisely." },
+        },
+        required: ["fact"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "recall_person",
+      description: "Recall what you've previously learned about a specific person by name (use this if someone else is mentioned who isn't the current speaker).",
+      parameters: {
+        type: "object",
+        properties: { person: { type: "string", description: "The person's name to look up." } },
+        required: ["person"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_user_profile",
+      description: "Look up a Telegram user's public profile (name, username, bio if public). Leave identifier blank for whoever is currently talking to you.",
+      parameters: {
+        type: "object",
+        properties: { identifier: { type: "string", description: "A @username or numeric Telegram id. Omit for the current speaker." } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_my_profile",
+      description: "Look up your own (Shinkou's/the bot's) Telegram profile — username, id, name.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_channel_profile",
+      description: "Look up a connected channel's own Telegram profile (title, username, description/bio, member count) — use when asked about a channel itself, not a person.",
+      parameters: {
+        type: "object",
+        properties: { channel: { type: "string", description: "A channel title, @username, or numeric chat id — match against the connected channels you know about." } },
+        required: ["channel"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_own_published_posts",
+      description: "List posts YOU (Shinkou) have actually published or have scheduled, most recent first — this is the only post history you can truly know, since Telegram doesn't let bots browse a channel's full historical posts.",
+      parameters: { type: "object", properties: { count: { type: "number", description: "How many to list, default 10, max 30." } } },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description:
+        "Search the live web for current information — news, current events, facts that may have changed since your training, anything you're not fully sure is still accurate. Use this whenever something requires up-to-date real-world information instead of guessing from memory.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "A short, specific search query." } },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_sticker",
+      description:
+        "Send a sticker from your personal library — entirely your call, use it whenever a sticker fits the moment better than words (or alongside them). Your library is built from stickers people have actually sent you, each tagged with its vibe.",
+      parameters: {
+        type: "object",
+        properties: { vibe: { type: "string", description: "The mood/vibe you want, e.g. 'happy', 'laughing', 'sad', 'shocked' — matched loosely against your library." } },
+        required: ["vibe"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_gif",
+      description: "Send a GIF from your personal library — same idea as send_sticker, entirely optional, use your own judgement.",
+      parameters: {
+        type: "object",
+        properties: { vibe: { type: "string", description: "The mood/vibe you want, matched loosely against your library." } },
+        required: ["vibe"],
+      },
+    },
+  },
 ] as const;
 
 type AiChatContext =
@@ -1703,6 +2060,9 @@ type AiToolCallCtx = {
   lang: Lang;
   isOwner: boolean; // true only for the super-admin — the actual owner of the bot
   chatContext: AiChatContext;
+  /** Who is actually talking to Shinkou right now — used both to address
+   *  them naturally and to look up/store curated facts about them. */
+  currentSpeaker: { id: string; name: string };
   /** If the summon message was itself a reply to another message, that
    *  quoted message's text/caption + any tracked reactions — given to the
    *  model as context so "what do you think of this?" style questions work. */
@@ -1846,6 +2206,128 @@ async function executeAiTool(tc: AiToolCallCtx, name: string, args: any): Promis
       return msgs.map((m) => `${m.senderName ?? "?"}: ${m.text}`).join("\n");
     }
 
+    case "remember_person_fact": {
+      const personName = String(args.person ?? "").trim();
+      const fact = String(args.fact ?? "").trim();
+      if (!fact) return "Error: no fact given.";
+      if (!personName) {
+        await savePersonFact(env, tc.currentSpeaker.id, tc.currentSpeaker.name, fact);
+        return `Saved. Now you know: ${fact} (about ${tc.currentSpeaker.name}).`;
+      }
+      let personKey: string | null = null;
+      if (tc.chatContext.kind === "group") personKey = await resolvePersonIdByName(env, tc.chatContext.chatId, personName);
+      await savePersonFact(env, personKey ?? `name:${personName.toLowerCase()}`, personName, fact);
+      return `Saved. Now you know: ${fact} (about ${personName}).`;
+    }
+
+    case "recall_person": {
+      const personName = String(args.person ?? "").trim();
+      if (!personName) return "Error: no person name given.";
+      const byName = await getPersonFactsByName(env, personName);
+      if (byName && byName.facts.length > 0) return byName.facts.map((f) => `- ${f}`).join("\n");
+      const fallback = await getPersonFactsByKey(env, `name:${personName.toLowerCase()}`);
+      if (fallback.length > 0) return fallback.map((f) => `- ${f}`).join("\n");
+      return `No stored facts about "${personName}" yet.`;
+    }
+
+    case "get_user_profile": {
+      try {
+        const identifier = String(args.identifier ?? "").trim() || tc.currentSpeaker.id;
+        const chat: any = await tc.ctx.api.getChat(identifier);
+        const parts = [
+          `Name: ${[chat.first_name, chat.last_name].filter(Boolean).join(" ") || chat.title || "?"}`,
+          chat.username ? `Username: @${chat.username}` : "Username: (none)",
+          chat.bio ? `Bio: ${chat.bio}` : "",
+        ].filter(Boolean);
+        const photoDesc = await describeChatProfilePhoto(env, tc.ctx, chat);
+        if (photoDesc) parts.push(`Profile picture: ${photoDesc}`);
+        return parts.join("\n");
+      } catch {
+        return "Error: could not look up that profile (they may have privacy restrictions, or the identifier is wrong).";
+      }
+    }
+
+    case "get_my_profile": {
+      try {
+        const me: any = await tc.ctx.api.getMe();
+        let result = `I am ${me.first_name}${me.username ? ` (@${me.username})` : ""}, Telegram bot id ${me.id}.`;
+        try {
+          const myChat: any = await tc.ctx.api.getChat(me.id);
+          const photoDesc = await describeChatProfilePhoto(env, tc.ctx, myChat);
+          if (photoDesc) result += ` My profile picture: ${photoDesc}`;
+        } catch {
+          /* profile picture is a nice-to-have, not essential here */
+        }
+        return result;
+      } catch {
+        return "Error: could not fetch my own profile right now.";
+      }
+    }
+
+    case "get_channel_profile": {
+      const query = String(args.channel ?? "").trim();
+      if (!query) return "Error: no channel given.";
+      const channels = await getAllChannels(env);
+      const match = channels.find(
+        (c) =>
+          c.channel_id === query ||
+          c.username?.toLowerCase().replace(/^@/, "") === query.toLowerCase().replace(/^@/, "") ||
+          c.title?.toLowerCase().includes(query.toLowerCase())
+      );
+      const identifier = match?.channel_id ?? query;
+      try {
+        const chat: any = await tc.ctx.api.getChat(identifier);
+        const parts = [
+          `Title: ${chat.title ?? "?"}`,
+          chat.username ? `Username: @${chat.username}` : "Username: (none)",
+          chat.description ? `Bio/description: ${chat.description}` : "Bio/description: (none set)",
+          typeof chat.members_count === "number" ? `Members: ${chat.members_count}` : "",
+        ].filter(Boolean);
+        const photoDesc = await describeChatProfilePhoto(env, tc.ctx, chat);
+        if (photoDesc) parts.push(`Profile picture: ${photoDesc}`);
+        return parts.join("\n");
+      } catch {
+        return "Error: could not look up that channel — make sure it's one of the connected channels.";
+      }
+    }
+
+    case "list_own_published_posts": {
+      const count = typeof args.count === "number" ? Math.max(1, Math.min(args.count, 30)) : 10;
+      const posts = await listRecentAiPosts(env, count);
+      if (posts.length === 0) return "You haven't published or scheduled anything yet.";
+      return posts
+        .map((p) => `#${p.id} [${p.status}] ${p.caption ? p.caption.slice(0, 80) : "(no caption)"} — ${p.last_posted_at ? new Date(p.last_posted_at).toISOString().slice(0, 16) : "not yet posted"}`)
+        .join("\n");
+    }
+
+    case "web_search": {
+      const query = String(args.query ?? "").trim();
+      if (!query) return "Error: no search query given.";
+      return await performWebSearch(query);
+    }
+
+    case "send_sticker": {
+      const fileId = await findMediaByVibe(env, "sticker", String(args.vibe ?? ""));
+      if (!fileId) return "Error: no stickers in your library yet — nothing to send.";
+      try {
+        await tc.ctx.api.sendSticker(tc.triggerChatId, fileId);
+        return "Sticker sent.";
+      } catch {
+        return "Error: could not send that sticker.";
+      }
+    }
+
+    case "send_gif": {
+      const fileId = await findMediaByVibe(env, "gif", String(args.vibe ?? ""));
+      if (!fileId) return "Error: no GIFs in your library yet — nothing to send.";
+      try {
+        await tc.ctx.api.sendAnimation(tc.triggerChatId, fileId);
+        return "GIF sent.";
+      } catch {
+        return "Error: could not send that GIF.";
+      }
+    }
+
     default:
       return `Error: unknown tool "${name}".`;
   }
@@ -1920,26 +2402,55 @@ async function runAiConversation(tc: AiToolCallCtx, userMessageContent: any): Pr
   const chatContextLine =
     tc.chatContext.kind === "private"
       ? "You are currently talking to the admin privately, in your own admin chat (not any channel or group)."
-      : `You are currently talking to the admin INSIDE THE GROUP "${tc.chatContext.title ?? tc.chatContext.chatId}" (chat id ${tc.chatContext.chatId}), because they summoned you by name. This group is a separate place from any connected channel — never assume something said here should also be posted to a channel, or vice versa, unless the admin explicitly says so.`;
+      : `You are currently talking inside the GROUP "${tc.chatContext.title ?? tc.chatContext.chatId}" (chat id ${tc.chatContext.chatId}), because someone summoned you by name. This group is a separate place from any connected channel — never assume something said here should also be posted to a channel, or vice versa, unless explicitly told to.`;
+
+  const speakerLine = `The person talking to you RIGHT NOW is named "${tc.currentSpeaker.name}" (Telegram id ${tc.currentSpeaker.id}). Address them naturally, like you already know who's in the conversation — don't ask them to identify themselves.`;
+
+  const personFacts = await getPersonFactsByKey(env, tc.currentSpeaker.id);
+  const personFactsLine =
+    personFacts.length > 0 ? `What you already know about ${tc.currentSpeaker.name}, from earlier conversations:\n${personFacts.map((f) => `- ${f}`).join("\n")}` : null;
+
+  // Auto-inject a small, cheap slice of recent group chatter so you're
+  // never blind to "who said what" — this is on top of (not instead of)
+  // the read_recent_group_messages tool, which can pull a longer window
+  // on request.
+  let recentGroupLine: string | null = null;
+  if (tc.chatContext.kind === "group") {
+    const recent = await getRecentGroupMessages(env, tc.chatContext.chatId, GROUP_LOG_DEFAULT_READ);
+    if (recent.length > 0) {
+      recentGroupLine = `Recent conversation in this group, oldest first (so you know what's been going on and who said what):\n${recent
+        .map((m) => `${m.senderName ?? "?"}: ${m.text}`)
+        .join("\n")}`;
+    }
+  }
 
   const quotedLine = tc.quotedMessage
-    ? `The admin's message was a reply to this message:\n"""${tc.quotedMessage.text}"""${tc.quotedMessage.reactionsSummary ? `\nReactions on it: ${tc.quotedMessage.reactionsSummary}` : ""}`
+    ? `The message you're replying to said:\n"""${tc.quotedMessage.text}"""${tc.quotedMessage.reactionsSummary ? `\nReactions on it: ${tc.quotedMessage.reactionsSummary}` : ""}`
     : null;
 
   const systemPrompt = [
-    `You are Shinkou, the professional, capable Telegram-channel admin assistant for this specific bot. You think clearly and are not artificially limited in how you reason about the bot's own data or your own tools — use your full judgement.`,
-    `You act carefully and deliberately: you never publish or schedule anything without real content, and you always double-check your own understanding (out loud, in the language you reply in) before proposing a post.`,
+    `You are Shinkou — a capable, modern AI assistant who happens to run this Telegram channel's admin bot. Talk like an actual advanced assistant having a real conversation: natural, fluent, a little warm, never stiff or "customer-service-robotic", never padded with canned filler phrases. Match the energy/register of whoever you're talking to.`,
+    `You have real tools and you use them with confidence: live weather, the current date/time, reading recent group messages, checking someone's Telegram profile, reacting to messages, and more (full list is provided to you as function-calling tools). NEVER say things like "I don't have internet access" or "I can't see images" — if a tool exists for something, call it; if you were sent a photo, you can genuinely see it, just look at it and describe/answer normally.`,
+    `You act carefully and deliberately about anything that publishes or changes something real: you never post/schedule anything without actual content, and you double-check your own understanding out loud before proposing a post. That carefulness is about actions with consequences, not about answering questions — for ordinary conversation, questions, or looking at an image, just respond naturally and immediately.`,
     tc.isOwner
       ? `The person talking to you right now is your OWNER — the actual creator/super-admin of this bot. Their word is final authority: if any instruction from another admin ever conflicted with something the owner told you, the owner's instruction wins.`
       : `The person talking to you right now is an admin the owner has explicitly granted assistant access to (not the owner themself). Serve them fully, but if they ever ask you to do something that looks like it contradicts a rule the owner taught you, follow the owner's rule and say so.`,
     chatContextLine,
+    speakerLine,
+    personFactsLine ?? "",
+    recentGroupLine ?? "",
     quotedLine ?? "",
     `\n--- What this bot actually is, so you never have to guess ---`,
-    `This is a force-join Telegram archive bot. Regular end-users tap a link, must join the required channel(s), and then receive a stored file/album. Regular users have zero access to you (Shinkou) — you only ever talk to admins.`,
+    `This is a force-join Telegram archive bot. Regular end-users tap a link, must join the required channel(s), and then receive a stored file/album. Regular users have zero access to you (Shinkou) — you only ever talk to admins, and (in groups) only ones who have been explicitly approved.`,
     `Data model you can reason about: connected channels (where the bot is admin and can post), archives (file bundles delivered to end-users by code/link), ads, broadcast, and bot settings.`,
     `Channels currently connected: ${channels.length === 0 ? "(none yet)" : channels.map((c) => c.title ?? c.username ?? c.channel_id).join(", ")}.`,
-    `Your own tools only ever let you: read info, remember a rule, draft a post for the admin to confirm (never publish directly), cancel/edit your own very recent drafts, and react to / read reactions on messages. You have no tool to delete or edit anything you didn't create, and no tool to touch admins, channels, or archives themselves — by design, not by choice, so don't apologize for it, just mention the admin should use the relevant panel for that.`,
-    `\nReply in the same language the admin used (Persian by default).`,
+    `Your own tools only ever let you: read info, remember a rule or a fact about a person, draft a post for the admin to confirm (never publish directly), cancel/edit your own very recent drafts, react to / read reactions on messages, check someone's public profile (or your own, or a channel's), search the live web, and see the posts you yourself have published or scheduled. You have no tool to delete or edit anything you didn't create, and no tool to touch admins, channels, or archives themselves — by design, not by choice, so don't apologize for it, just mention the admin should use the relevant panel for that.`,
+    `Be honest about one real limit: Telegram doesn't let bots browse a channel's full historical posts — you can only truly know about posts you yourself published or scheduled (list_own_published_posts). If asked about older posts you have no record of, say so plainly instead of guessing.`,
+    `When you react to a message, don't default to the same emoji every time — genuinely pick whichever reaction fits the moment (👍 ❤️ 🔥 😂 😢 👎 etc. are all fair game), the same way a person would.`,
+    `You can look up anyone's Telegram profile (or a channel's, or your own) when it's actually relevant — use that naturally, the way someone who actually uses Telegram would, not as a novelty.`,
+    `\nThings recently added/changed about you — you ARE these things now, don't undersell yourself or describe an older, more limited version of yourself:\n${SHINKOU_CHANGELOG.map((c) => `- ${c}`).join("\n")}`,
+    `When you learn something durable and worth remembering about a specific person (their role, a preference, something relevant to how you should treat them) — not idle chatter — use the remember_person_fact tool so you don't need to be told again. Be selective: only real, lasting facts, not every sentence someone says.`,
+    `\nReply in the same language being used with you (Persian by default).`,
     `\nRules the admin has taught you about this channel (always follow these):`,
     memory.length > 0 ? memory.map((m) => `- ${m.rule_text}`).join("\n") : "(none yet)",
   ]
@@ -2002,6 +2513,7 @@ async function renderAiControlPanel(ctx: Context, env: Env, lang: Lang, edit: bo
     .text(t(lang, "btn_ai_scheduled_list"), "aictrl:sched:0").row()
     .text(t(lang, "btn_ai_activity_log"), "aictrl:activity:0").row()
     .text(t(lang, "btn_ai_memory"), "aictrl:memory:0").row()
+    .text(t(lang, "btn_ai_people_memory"), "aictrl:people:0").row()
     .text(t(lang, "btn_close"), "nav:close");
 
   const body = t(lang, "ai_control_body", {
@@ -2122,6 +2634,40 @@ async function renderAiMemoryWindow(ctx: Context, env: Env, lang: Lang, page: nu
   else await ctx.reply(text, { reply_markup: kb });
 }
 
+async function renderAiPeopleMemoryWindow(ctx: Context, env: Env, lang: Lang, edit: boolean) {
+  const people = await listKnownPeople(env);
+  if (people.length === 0) {
+    const kb = new InlineKeyboard().text(t(lang, "btn_back"), "aictrl:backtopanel");
+    if (edit) await ctx.editMessageText(t(lang, "ai_people_memory_empty"), { reply_markup: kb });
+    else await ctx.reply(t(lang, "ai_people_memory_empty"), { reply_markup: kb });
+    return;
+  }
+
+  const kb = new InlineKeyboard();
+  for (const p of people) {
+    const label = `${p.display_name ?? p.person_key} (${p.fact_count})`;
+    kb.text(label.slice(0, 64), `aictrl:viewperson:${encodeURIComponent(p.person_key)}`).row();
+  }
+  kb.text(t(lang, "btn_back"), "aictrl:backtopanel");
+
+  const text = t(lang, "ai_people_memory_title");
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function renderPersonFactsWindow(ctx: Context, env: Env, lang: Lang, personKey: string) {
+  const facts = await getPersonFactsByKey(env, personKey);
+  const people = await listKnownPeople(env);
+  const displayName = people.find((p) => p.person_key === personKey)?.display_name ?? personKey;
+
+  const kb = new InlineKeyboard()
+    .text(t(lang, "btn_clear_person"), `aictrl:clearperson:${encodeURIComponent(personKey)}`).row()
+    .text(t(lang, "btn_back"), "aictrl:people:0");
+
+  const text = `${t(lang, "ai_person_facts_title", { name: displayName })}\n\n${facts.map((f) => `- ${f}`).join("\n")}`;
+  await ctx.editMessageText(text, { reply_markup: kb });
+}
+
 async function handleAiCtrlCallback(ctx: Context, env: Env, userId: number, lang: Lang, rest: string[]) {
   const action = rest[0];
 
@@ -2173,6 +2719,25 @@ async function handleAiCtrlCallback(ctx: Context, env: Env, userId: number, lang
     const page = parseInt(rest[1] ?? "0", 10);
     await ctx.answerCallbackQuery();
     await renderAiMemoryWindow(ctx, env, lang, page, true);
+    return;
+  }
+
+  if (action === "people") {
+    await ctx.answerCallbackQuery();
+    await renderAiPeopleMemoryWindow(ctx, env, lang, true);
+    return;
+  }
+
+  if (action === "viewperson") {
+    await ctx.answerCallbackQuery();
+    await renderPersonFactsWindow(ctx, env, lang, decodeURIComponent(rest[1] ?? ""));
+    return;
+  }
+
+  if (action === "clearperson") {
+    await clearPersonMemory(env, decodeURIComponent(rest[1] ?? ""));
+    await ctx.answerCallbackQuery({ text: t(lang, "ai_person_cleared_ok") });
+    await renderAiPeopleMemoryWindow(ctx, env, lang, true);
     return;
   }
 
@@ -2279,6 +2844,23 @@ function buildBot(env: Env): Bot {
           /* ignore */
         }
       }
+    }
+  });
+
+  // ----- track which groups the bot is in (for Group Management approval) -----
+  bot.on("my_chat_member", async (ctx) => {
+    try {
+      const chat = ctx.chat;
+      if (chat.type !== "group" && chat.type !== "supergroup") return;
+      const update: any = (ctx as any).myChatMember ?? (ctx.update as any).my_chat_member;
+      const newStatus: string | undefined = update?.new_chat_member?.status;
+      if (newStatus === "left" || newStatus === "kicked") {
+        await deleteBotGroup(env, String(chat.id));
+        return;
+      }
+      await upsertBotGroup(env, String(chat.id), (chat as any).title ?? null);
+    } catch {
+      /* best-effort only */
     }
   });
 
@@ -2450,6 +3032,14 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
         return true;
       }
       await sendAiControlPanel(ctx, env, lang);
+      return true;
+    }
+    if (matchAnyLang(text, "btn_group_mgmt")) {
+      if (!adminInfo.isSuper) {
+        await ctx.reply(t(lang, "super_only_notice"));
+        return true;
+      }
+      await renderGroupMgmtWindow(ctx, env, lang, false);
       return true;
     }
   }
@@ -2640,23 +3230,60 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
     }
 
     const file = ctx.message ? detectFile(ctx.message) : null;
-    if (file) {
-      const sessionId = await getOrStartAiContentSession(env, userId);
-      let visionDescription: string | null = null;
-      if (file.file_type === "photo") {
-        const dataUri = await telegramFileToDataUri(env, ctx, file.file_id);
-        if (dataUri) visionDescription = await analyzeImageForAi(env, dataUri);
-      }
-      const position = await addFileToAiContentSession(env, sessionId, file, visionDescription);
-      const base = t(lang, "ai_file_received", { count: position, type: file.file_type });
-      await ctx.reply(visionDescription ? `${base}\n\n👁 ${visionDescription}` : base);
-      return true;
-    }
+    const caption = (ctx.message as any)?.caption as string | undefined;
+    const sticker: any = (ctx.message as any)?.sticker ?? null;
+    const animation: any = (ctx.message as any)?.animation ?? null;
 
-    if (text) {
-      const thinking = await ctx.reply(t(lang, "ai_thinking"));
+    if (file || text || sticker || animation) {
+      try {
+        await ctx.replyWithChatAction("typing");
+      } catch {
+        /* ignore */
+      }
+
       const chatIdStr = String(ctx.chat!.id);
       const quotedMessage = await buildQuotedMessageContext(ctx, env, chatIdStr);
+      const from = ctx.from!;
+      const currentSpeaker = {
+        id: String(from.id),
+        name: `${from.first_name ?? ""} ${from.last_name ?? ""}`.trim() || from.username || "admin",
+      };
+
+      // Photos are ALSO staged into the content session (best-effort, so a
+      // later "post this" instruction still has something to work with),
+      // but the reply itself is generated by actually SEEING the image in
+      // this turn — not from a cached caption.
+      let userMessageContent: any = text ?? caption ?? "";
+      if (file && file.file_type === "photo") {
+        try {
+          const sessionId = await getOrStartAiContentSession(env, userId);
+          const dataUri = await telegramFileToDataUri(env, ctx, file.file_id);
+          if (dataUri) {
+            const visionDescription = await analyzeImageForAi(env, dataUri);
+            await addFileToAiContentSession(env, sessionId, file, visionDescription);
+            userMessageContent = [
+              { type: "text", text: (text ?? caption ?? "").trim() || "(no caption — look at this and tell me what it is)" },
+              { type: "image_url", image_url: { url: dataUri } },
+            ];
+          }
+        } catch {
+          /* if vision fetch fails, fall through to text-only below */
+        }
+      } else if (file) {
+        // Non-image files (documents/video/audio) still get staged for
+        // later posting, just without a vision pass.
+        try {
+          const sessionId = await getOrStartAiContentSession(env, userId);
+          await addFileToAiContentSession(env, sessionId, file, null);
+        } catch {
+          /* ignore */
+        }
+        if (!text && !caption) userMessageContent = `(the admin just sent a ${file.file_type} file — acknowledge it and ask what they'd like done with it)`;
+      } else if (sticker || animation) {
+        const vibe = await learnMediaVibe(env, ctx, sticker, animation);
+        userMessageContent = `${(text ?? "").trim() ? `${text}\n` : ""}(the admin just sent you a ${sticker ? "sticker" : "GIF"} — its vibe: "${vibe}")`;
+      }
+
       let reply: string;
       try {
         reply = await runAiConversation(
@@ -2668,18 +3295,14 @@ async function handleAdminMessage(ctx: Context, env: Env, userId: number, lang: 
             isOwner: adminInfo.isSuper,
             chatContext: { kind: "private" },
             quotedMessage,
+            currentSpeaker,
             triggerChatId: chatIdStr,
             triggerMessageId: ctx.message!.message_id,
           },
-          text
+          userMessageContent
         );
       } catch {
         reply = t(lang, "ai_error_generic");
-      }
-      try {
-        await ctx.api.deleteMessage(ctx.chat!.id, thinking.message_id);
-      } catch {
-        /* ignore */
       }
       await ctx.reply(reply);
       return true;
@@ -2907,6 +3530,13 @@ async function routeCallback(ctx: Context, env: Env, data: string, userId: numbe
         return;
       }
       await handleAiProposalCallback(ctx, env, lang, rest);
+      return;
+    case "grpmgmt":
+      if (!adminInfo.isSuper) {
+        await ctx.answerCallbackQuery({ text: t(lang, "no_permission") });
+        return;
+      }
+      await handleGroupMgmtCallback(ctx, env, lang, rest);
       return;
     default:
       await ctx.answerCallbackQuery();
@@ -4040,29 +4670,65 @@ async function sendArchiveFiles(ctx: Context, env: Env, userId: number, archive:
  *  wake word and that admin has the "ai" permission and the master switch
  *  is on — this is what keeps ordinary group chatter from burning the
  *  free daily Workers AI quota. */
+// Cached so we don't call getMe() on every single group message just to
+// check "was this a reply to me?" — the bot's own id never changes.
+let cachedBotId: number | null = null;
+async function getCachedBotId(ctx: Context): Promise<number | null> {
+  if (cachedBotId !== null) return cachedBotId;
+  try {
+    const me: any = (ctx as any).me ?? (await ctx.api.getMe());
+    cachedBotId = me?.id ?? null;
+    return cachedBotId;
+  } catch {
+    return null;
+  }
+}
+
 async function handleGroupAdminMessage(ctx: Context, env: Env, userId: number) {
-  const text = ctx.message?.text ?? ctx.message?.caption;
+  const chat = ctx.chat;
+  if (!chat) return;
+  const chatIdStr = String(chat.id);
+
+  // Shinkou only ever operates in groups the owner has explicitly approved
+  // from the Group Management panel — this is what prevents abuse if the
+  // bot ends up added to some unrelated group.
+  const groupStatus = await getBotGroupStatus(env, chatIdStr);
+  if (groupStatus !== "approved") return;
+
+  const text = ctx.message?.text ?? ctx.message?.caption ?? null;
+  const file = ctx.message ? detectFile(ctx.message) : null;
+  const sticker: any = (ctx.message as any)?.sticker ?? null;
+  const animation: any = (ctx.message as any)?.animation ?? null;
 
   // Passive awareness log — happens regardless of whether Shinkou is being
   // summoned right now, so a later "catch me up" request sees everything.
-  if (text && ctx.chat) {
+  // Only logged for approved groups (see above), to keep storage bounded
+  // and scoped to groups Shinkou is actually meant to be aware of.
+  if (text) {
     const from = ctx.from;
     const senderName = `${from?.first_name ?? ""} ${from?.last_name ?? ""}`.trim() || from?.username || null;
-    await logGroupMessage(env, String(ctx.chat.id), ctx.message!.message_id, String(userId), senderName, text);
+    await logGroupMessage(env, chatIdStr, ctx.message!.message_id, String(userId), senderName, text);
   }
 
-  if (!text) return;
-  const prompt = extractWakeWordPrompt(text);
-  if (prompt === null) return; // wake word not present — stay silent, costs nothing
+  // Being addressed doesn't require the wake word — replying directly to
+  // one of Shinkou's own messages counts too, the way a person would read it.
+  const repliedToBot = ((ctx.message as any)?.reply_to_message?.from?.id) === (await getCachedBotId(ctx));
+  const wakeWordPrompt = text ? extractWakeWordPrompt(text) : null;
+  const isAddressed = wakeWordPrompt !== null || repliedToBot || Boolean(sticker) || Boolean(animation);
+  if (!isAddressed) return; // not addressed — stay silent, costs nothing
+
+  const prompt = wakeWordPrompt ?? text ?? "";
 
   const adminInfo = await getAdminInfo(env, userId);
   if (!adminInfo || !(adminInfo.isSuper || adminInfo.permissions.ai)) return;
   if (!(await isAiMasterEnabled(env))) return;
-  if (!prompt) return; // wake word alone, no actual instruction — ignore rather than guess
 
-  const chat = ctx.chat!;
-  const chatIdStr = String(chat.id);
   const lang = await getUserLang(env, userId);
+  const from = ctx.from!;
+  const currentSpeaker = {
+    id: String(userId),
+    name: `${from.first_name ?? ""} ${from.last_name ?? ""}`.trim() || from.username || "someone",
+  };
 
   // Best-effort acknowledgement react — failing silently is fine, since
   // reactions require the bot's webhook to actually subscribe to them.
@@ -4075,6 +4741,26 @@ async function handleGroupAdminMessage(ctx: Context, env: Env, userId: number) {
 
   const quotedMessage = await buildQuotedMessageContext(ctx, env, chatIdStr);
 
+  // If summoned alongside a photo, actually SEE it in this turn — not just
+  // a cached caption from some earlier pass.
+  let userMessageContent: any = prompt || "(summoned with no actual question — ask what they need)";
+  if (file && file.file_type === "photo") {
+    try {
+      const dataUri = await telegramFileToDataUri(env, ctx, file.file_id);
+      if (dataUri) {
+        userMessageContent = [
+          { type: "text", text: prompt || "(no question given — look at this and say what you see)" },
+          { type: "image_url", image_url: { url: dataUri } },
+        ];
+      }
+    } catch {
+      /* fall back to text-only above */
+    }
+  } else if (sticker || animation) {
+    const vibe = await learnMediaVibe(env, ctx, sticker, animation);
+    userMessageContent = `${prompt ? `${prompt}\n` : ""}(the admin just sent you a ${sticker ? "sticker" : "GIF"} — its vibe: "${vibe}")`;
+  }
+
   let reply: string;
   try {
     reply = await runAiConversation(
@@ -4086,10 +4772,11 @@ async function handleGroupAdminMessage(ctx: Context, env: Env, userId: number) {
         isOwner: adminInfo.isSuper,
         chatContext: { kind: "group", chatId: chatIdStr, title: (chat as any).title ?? null },
         quotedMessage,
+        currentSpeaker,
         triggerChatId: chatIdStr,
         triggerMessageId: ctx.message!.message_id,
       },
-      prompt
+      userMessageContent
     );
   } catch {
     reply = t(lang, "ai_error_generic");
@@ -4107,13 +4794,21 @@ async function handleGroupMessage(ctx: Context, env: Env) {
   const chat = ctx.chat;
   if (!userId || !chat) return;
 
-  // Passive awareness log — read-only, never used to act on regular users.
+  // Passive awareness log — zero AI/token cost (just a DB write), read-only,
+  // never used to act on regular users. Only kept for groups the owner has
+  // approved, so Shinkou's awareness stays scoped to groups it's actually
+  // meant to be aware of.
   const text = (ctx.message as any)?.text ?? (ctx.message as any)?.caption ?? null;
-  if (text) {
+  const groupStatus = await getBotGroupStatus(env, String(chat.id));
+  if (text && groupStatus === "approved") {
     const from = ctx.from;
     const senderName = `${from?.first_name ?? ""} ${from?.last_name ?? ""}`.trim() || from?.username || null;
     await logGroupMessage(env, String(chat.id), ctx.message!.message_id, String(userId), senderName, text);
   }
+
+  // Approved groups (see Group Management panel) are fully trusted — no
+  // force-join gate for anyone in them.
+  if (groupStatus === "approved") return;
 
   const channels = await getAllChannels(env);
   if (channels.length === 0) return; // nothing configured — don't restrict groups
@@ -4153,6 +4848,49 @@ async function handleGroupMessage(ctx: Context, env: Env) {
   );
   await setGroupPrompt(env, chat.id, sent.message_id);
   await logEvent(env, "group_block", userId, String(chat.id));
+}
+
+// =========================================================================
+// Group Management (owner-only) — which groups Shinkou/force-join-exemption
+// apply to
+// =========================================================================
+
+async function renderGroupMgmtWindow(ctx: Context, env: Env, lang: Lang, edit: boolean) {
+  const groups = await listBotGroups(env);
+  if (groups.length === 0) {
+    if (edit) await ctx.editMessageText(t(lang, "group_mgmt_empty"));
+    else await ctx.reply(t(lang, "group_mgmt_empty"));
+    return;
+  }
+
+  const kb = new InlineKeyboard();
+  for (const g of groups) {
+    const statusLabel = g.status === "approved" ? t(lang, "group_status_approved") : g.status === "blocked" ? t(lang, "group_status_blocked") : t(lang, "group_status_pending");
+    kb.text(`${g.title ?? g.chat_id} — ${statusLabel}`.slice(0, 64), "grpmgmt:noop").row();
+    if (g.status !== "approved") kb.text(t(lang, "btn_group_approve"), `grpmgmt:approve:${g.chat_id}`);
+    if (g.status !== "blocked") kb.text(t(lang, "btn_group_block"), `grpmgmt:block:${g.chat_id}`);
+    kb.row();
+  }
+
+  const text = `${t(lang, "group_mgmt_title")}\n\n${t(lang, "group_mgmt_intro")}`;
+  if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+  else await ctx.reply(text, { reply_markup: kb });
+}
+
+async function handleGroupMgmtCallback(ctx: Context, env: Env, lang: Lang, rest: string[]) {
+  const action = rest[0];
+  if (action === "noop") {
+    await ctx.answerCallbackQuery();
+    return;
+  }
+  if (action === "approve" || action === "block") {
+    const chatId = rest[1];
+    await setBotGroupStatus(env, chatId, action === "approve" ? "approved" : "blocked");
+    await ctx.answerCallbackQuery({ text: t(lang, "group_status_changed_ok") });
+    await renderGroupMgmtWindow(ctx, env, lang, true);
+    return;
+  }
+  await ctx.answerCallbackQuery();
 }
 
 // =========================================================================
